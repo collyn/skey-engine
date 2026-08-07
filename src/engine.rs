@@ -80,18 +80,19 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
         let lc = ch.to_ascii_lowercase(); let upper = ch.is_ascii_uppercase(); let n = ls.len();
         if lc == 'd' && n > 0 && ls[n-1].c == 'd' && !ls[n-1].is_vowel && !ls[n-1].is_dstroke
         { ls[n-1].is_dstroke = true; if upper { ls[n-1].upper = true; } continue; }
-        // Double-vowel circumflex: search backwards through vowel cluster
-        // to find nearest matching vowel (Unikey-style: vay+a → vây)
+        // Double-vowel circumflex: search backwards through vowel cluster.
+        // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
         if tables::is_vowel(lc) && matches!(lc, 'a'|'e'|'o') && n > 0 {
-            let mut vi: Option<usize> = None;
+            let mut consumed = false;
             for i in (0..n).rev() {
                 if ls[i].is_vowel {
-                    if ls[i].c == lc && ls[i].variant == 0 { vi = Some(i); break; }
+                    if ls[i].c == lc {
+                        if ls[i].variant == 0 { ls[i].variant = 1; if upper { ls[i].upper = true; } consumed = true; break; }
+                        if ls[i].variant == 1 { ls[i].variant = 0; break; } // toggle off, then push copy
+                    }
                 } else { break; }
             }
-            if let Some(i) = vi {
-                ls[i].variant = 1; if upper { ls[i].upper = true; } continue;
-            }
+            if consumed { continue; }
         }
         if lc == 'w' {
             if let Some(vi) = last_w_target_index(&ls) {
@@ -153,18 +154,19 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
         { ls[n-1].is_dstroke = true; if upper { ls[n-1].upper = true; } continue; }
 
         // ── Telex circumflex: double same vowel ──
-        // Double-vowel circumflex: search backwards through vowel cluster
-        // to find nearest matching vowel (Unikey-style: vay+a → vây)
+        // Double-vowel circumflex: search backwards through vowel cluster.
+        // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
         if tables::is_vowel(lc) && matches!(lc, 'a'|'e'|'o') && n > 0 {
-            let mut vi: Option<usize> = None;
+            let mut consumed = false;
             for i in (0..n).rev() {
                 if ls[i].is_vowel {
-                    if ls[i].c == lc && ls[i].variant == 0 { vi = Some(i); break; }
+                    if ls[i].c == lc {
+                        if ls[i].variant == 0 { ls[i].variant = 1; if upper { ls[i].upper = true; } consumed = true; break; }
+                        if ls[i].variant == 1 { ls[i].variant = 0; break; } // toggle off, then push copy
+                    }
                 } else { break; }
             }
-            if let Some(i) = vi {
-                ls[i].variant = 1; if upper { ls[i].upper = true; } continue;
-            }
+            if consumed { continue; }
         }
 
         // ── Telex w (breve/horn) ──
@@ -389,6 +391,18 @@ mod tests {
     #[test] fn teipvni_tone_replace() {
         assert_eq!(tv("saosf"),"sào");  // Telex acute→grave in combined mode
         assert_eq!(tv("sao1f"),"sào");  // VNI acute + Telex grave
+    }
+
+    // ── Unikey-style triple-press toggle ────────────────────────────
+    #[test] fn telex_triple_toggle() {
+        assert_eq!(tt("rooot"),"root");  // oo→ô, ooo→oo
+        assert_eq!(tt("roo"),"rô");
+        assert_eq!(tt("aa"),"â");        // double → circumflex
+        assert_eq!(tt("aaa"),"aa");      // triple → undo
+        assert_eq!(tt("aaaa"),"aâ");     // quadruple → circumflex again
+        assert_eq!(tt("ee"),"ê");
+        assert_eq!(tt("eee"),"ee");
+        assert_eq!(tt("oooo"),"oô");     // oo→ô, ooo→oo, oooo→oô
     }
 
     // ── Unikey-style double-vowel across y ──────────────────────────
