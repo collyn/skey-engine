@@ -82,15 +82,19 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
         { ls[n-1].is_dstroke = true; if upper { ls[n-1].upper = true; } continue; }
         // Double-vowel circumflex: search backwards through vowel cluster.
         // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
+        // Double-vowel circumflex: search backwards through vowel cluster.
+        // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
         if tables::is_vowel(lc) && matches!(lc, 'a'|'e'|'o') && n > 0 {
             let mut consumed = false;
-            for i in (0..n).rev() {
-                if ls[i].is_vowel {
-                    if ls[i].c == lc {
-                        if ls[i].variant == 0 { ls[i].variant = 1; if upper { ls[i].upper = true; } consumed = true; break; }
-                        if ls[i].variant == 1 { ls[i].variant = 0; break; } // toggle off, then push copy
-                    }
-                } else { break; }
+            if let Some(vi) = last_vowel_index(&ls) {
+                for i in (0..=vi).rev() {
+                    if ls[i].is_vowel {
+                        if ls[i].c == lc {
+                            if ls[i].variant == 0 { ls[i].variant = 1; if upper { ls[i].upper = true; } consumed = true; break; }
+                            if ls[i].variant == 1 { ls[i].variant = 0; break; } // toggle off, then push copy
+                        }
+                    } else { break; }
+                }
             }
             if consumed { continue; }
         }
@@ -154,17 +158,19 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
         { ls[n-1].is_dstroke = true; if upper { ls[n-1].upper = true; } continue; }
 
         // ── Telex circumflex: double same vowel ──
-        // Double-vowel circumflex: search backwards through vowel cluster.
+        // Search backwards from last vowel through vowel cluster.
         // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
         if tables::is_vowel(lc) && matches!(lc, 'a'|'e'|'o') && n > 0 {
             let mut consumed = false;
-            for i in (0..n).rev() {
-                if ls[i].is_vowel {
-                    if ls[i].c == lc {
-                        if ls[i].variant == 0 { ls[i].variant = 1; if upper { ls[i].upper = true; } consumed = true; break; }
-                        if ls[i].variant == 1 { ls[i].variant = 0; break; } // toggle off, then push copy
-                    }
-                } else { break; }
+            if let Some(vi) = last_vowel_index(&ls) {
+                for i in (0..=vi).rev() {
+                    if ls[i].is_vowel {
+                        if ls[i].c == lc {
+                            if ls[i].variant == 0 { ls[i].variant = 1; if upper { ls[i].upper = true; } consumed = true; break; }
+                            if ls[i].variant == 1 { ls[i].variant = 0; break; } // toggle off, then push copy
+                        }
+                    } else { break; }
+                }
             }
             if consumed { continue; }
         }
@@ -679,6 +685,8 @@ fn comprehensive_vietnamese() {
         ("hoanf","hoàn",1),("huyeenf","huyền",1),("nguyeexn","nguyễn",1),
         ("ngoaif","ngoài",1),("ngoafi","ngoài",1),
         ("vaya","vây",1),("vayaj","vậy",1),("vayas","vấy",1),("mayas","mấy",1),
+        // Double-vowel across consonant: nhan+a→nhân, khan+a→khân
+        ("nhana","nhân",1),("khanas","khấn",1),("nhanaa","nhana",1),
         ("toans","toán",1),("thowif","thời",1),
         ("xin","xin",1),("tooi","tôi",1),("laf","là",1),("cos","có",1),
         ("banj","bạn",1),("minhf","mình",1),("nawm","năm",1),("thangs","tháng",1),
