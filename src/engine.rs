@@ -7,13 +7,13 @@ use crate::tables;
 #[derive(Clone, Copy, Default)]
 struct Letter {
     c: char,
-    is_vowel: bool, variant: u8, tone: u8, is_dstroke: bool, upper: bool,
+    is_vowel: bool, variant: u8, tone: u8, is_dstroke: bool, upper: bool, from_w: bool,
 }
 
 impl Letter {
     fn new(c: char, upper: bool) -> Self {
         let lc = c.to_ascii_lowercase();
-        Letter { c: lc, is_vowel: tables::is_vowel(lc), variant: 0, tone: 0, is_dstroke: false, upper }
+        Letter { c: lc, is_vowel: tables::is_vowel(lc), variant: 0, tone: 0, is_dstroke: false, upper, from_w: false }
     }
 }
 
@@ -101,15 +101,28 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
         if lc == 'w' {
             if let Some(vi) = last_w_target_index(&ls) {
                 match ls[vi].c {
-                    'a' => { ls[vi].variant = 2; continue; }
-                    'o' => { ls[vi].variant = 2; if vi > 0 && ls[vi-1].c == 'u' { ls[vi-1].variant = 2; } continue; }
-                    'u' => { ls[vi].variant = 2; continue; }
-                    'e' => { ls[vi].variant = 1; continue; }
+                    'a' => { ls[vi].variant = if ls[vi].variant == 2 { 0 } else { 2 }; continue; }
+                    'o' => {
+                        if ls[vi].variant == 2 { ls[vi].variant = 0; if vi > 0 && ls[vi-1].c == 'u' && ls[vi-1].variant == 2 { ls[vi-1].variant = 0; } }
+                        else { ls[vi].variant = 2; if vi > 0 && ls[vi-1].c == 'u' { ls[vi-1].variant = 2; } }
+                        continue;
+                    }
+                    'u' => {
+                        if ls[vi].variant == 2 {
+                            if ls[vi].from_w {
+                                // standalone w toggle-off: ư → w
+                                ls[vi].c = 'w'; ls[vi].is_vowel = false; ls[vi].from_w = false;
+                            }
+                            ls[vi].variant = 0;
+                        } else { ls[vi].variant = 2; }
+                        continue;
+                    }
+                    'e' => { ls[vi].variant = if ls[vi].variant == 1 { 0 } else { 1 }; continue; }
                     _ => {}
                 }
-            } else if short_w {
-                // short_w mode: standalone w → ư
-                ls.push(Letter { c: 'u', is_vowel: true, variant: 2, tone: 0, is_dstroke: false, upper });
+            } else if short_w && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel) {
+                // short_w mode: standalone w → ư (but not after a literal w)
+                ls.push(Letter { c: 'u', is_vowel: true, variant: 2, tone: 0, is_dstroke: false, upper, from_w: true });
                 continue;
             }
         }
@@ -179,14 +192,24 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
         if lc == 'w' {
             if let Some(vi) = last_w_target_index(&ls) {
                 match ls[vi].c {
-                    'a' => { ls[vi].variant = 2; continue; }
-                    'o' => { ls[vi].variant = 2; if vi > 0 && ls[vi-1].c == 'u' { ls[vi-1].variant = 2; } continue; }
-                    'u' => { ls[vi].variant = 2; continue; }
-                    'e' => { ls[vi].variant = 1; continue; }
+                    'a' => { ls[vi].variant = if ls[vi].variant == 2 { 0 } else { 2 }; continue; }
+                    'o' => {
+                        if ls[vi].variant == 2 { ls[vi].variant = 0; if vi > 0 && ls[vi-1].c == 'u' && ls[vi-1].variant == 2 { ls[vi-1].variant = 0; } }
+                        else { ls[vi].variant = 2; if vi > 0 && ls[vi-1].c == 'u' { ls[vi-1].variant = 2; } }
+                        continue;
+                    }
+                    'u' => {
+                        if ls[vi].variant == 2 {
+                            if ls[vi].from_w { ls[vi].c = 'w'; ls[vi].is_vowel = false; ls[vi].from_w = false; }
+                            ls[vi].variant = 0;
+                        } else { ls[vi].variant = 2; }
+                        continue;
+                    }
+                    'e' => { ls[vi].variant = if ls[vi].variant == 1 { 0 } else { 1 }; continue; }
                     _ => {}
                 }
-            } else if short_w {
-                ls.push(Letter { c: 'u', is_vowel: true, variant: 2, tone: 0, is_dstroke: false, upper });
+            } else if short_w && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel) {
+                ls.push(Letter { c: 'u', is_vowel: true, variant: 2, tone: 0, is_dstroke: false, upper, from_w: true });
                 continue;
             }
         }
@@ -231,7 +254,7 @@ pub fn convert_viqr(input: &str) -> String {
                     }
                 }
                 // Fall through: treat as literal character
-                ls.push(Letter { c: ch, is_vowel: false, variant: 0, tone: 0, is_dstroke: false, upper: false });
+                ls.push(Letter { c: ch, is_vowel: false, variant: 0, tone: 0, is_dstroke: false, upper: false, from_w: false });
                 continue;
             }
             _ => {}
@@ -429,6 +452,29 @@ mod tests {
         assert_eq!(tt("ee"),"ê");
         // aay still works
         assert_eq!(tt("aay"),"ây");
+    }
+
+    // ── w-toggle: pressing w again undoes the mark ──────────────────
+    #[test] fn telex_w_toggle() {
+        // Standalone w → ư, ww → w, www → ww, wwww → www
+        assert_eq!(tt("w"),"ư");
+        assert_eq!(tt("ww"),"w");
+        assert_eq!(tt("www"),"ww");
+        assert_eq!(tt("wwww"),"www");
+        // wws: toggle off to w, then s has no vowel → "ws"
+        assert_eq!(tt("wws"),"ws");
+    }
+    #[test] fn telex_w_toggle_regular() {
+        assert_eq!(tt("aw"),"ă");          // a+w → ă
+        assert_eq!(tt("aww"),"a");         // ă+w toggle off → a
+        assert_eq!(tt("ow"),"ơ");          // o+w → ơ
+        assert_eq!(tt("oww"),"o");         // ơ+w toggle off → o
+        assert_eq!(tt("uw"),"ư");          // u+w → ư
+        assert_eq!(tt("uww"),"u");         // ư+w toggle off → u
+        assert_eq!(tt("ew"),"ê");          // e+w → ê
+        assert_eq!(tt("eww"),"e");         // ê+w toggle off → e
+        assert_eq!(tt("uow"),"ươ");        // u+o+w → ươ
+        assert_eq!(tt("uoww"),"uo");       // ươ+w toggle off → uo
     }
 
     // ── w-target tests: w applies to last modifiable vowel ──────────
