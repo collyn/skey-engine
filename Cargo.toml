@@ -1,0 +1,13 @@
+[package]
+name = "skey-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Stateless Vietnamese input method engine"
+authors = ["Nguyễn Tiến Huy <collyn094@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/collyn/skey-engine"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
