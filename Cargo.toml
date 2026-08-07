@@ -6,8 +6,11 @@ description = "Stateless Vietnamese input method engine"
 authors = ["Nguyễn Tiến Huy <collyn094@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/collyn/skey-engine"
+readme = "README.md"
+keywords = ["vietnamese", "ime", "telex", "vni", "input-method"]
+categories = ["text-processing", "internationalization"]
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
