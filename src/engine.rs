@@ -138,20 +138,20 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
-        let n = ls.len();
-        if lc == 'd' && n > 0 && ls[n - 1].c == 'd' && !ls[n - 1].is_vowel && !ls[n - 1].is_dstroke
-        {
-            ls[n - 1].is_dstroke = true;
-            if upper {
-                ls[n - 1].upper = true;
+        // dd → đ: search backwards for any unconverted d (not just adjacent),
+        // so "dad" → "đa" (Unikey-compatible).
+        if lc == 'd' {
+            if let Some(di) = last_d_index(&ls) {
+                ls[di].is_dstroke = true;
+                if upper {
+                    ls[di].upper = true;
+                }
+                continue;
             }
-            continue;
         }
         // Double-vowel circumflex: search backwards through vowel cluster.
         // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
-        // Double-vowel circumflex: search backwards through vowel cluster.
-        // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
-        if tables::is_vowel(lc) && matches!(lc, 'a' | 'e' | 'o') && n > 0 {
+        if tables::is_vowel(lc) && matches!(lc, 'a' | 'e' | 'o') && !ls.is_empty() {
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
                 for i in (0..=vi).rev() {
@@ -263,7 +263,6 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
-        let n = ls.len();
 
         // ── VNI digit rules ──
         if let Some(t) = vni_tone(lc) {
@@ -317,20 +316,21 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
 
-        // ── Telex dd → đ ──
-        if lc == 'd' && n > 0 && ls[n - 1].c == 'd' && !ls[n - 1].is_vowel && !ls[n - 1].is_dstroke
-        {
-            ls[n - 1].is_dstroke = true;
-            if upper {
-                ls[n - 1].upper = true;
+        // ── Telex dd → đ (search backwards for any unconverted d) ──
+        if lc == 'd' {
+            if let Some(di) = last_d_index(&ls) {
+                ls[di].is_dstroke = true;
+                if upper {
+                    ls[di].upper = true;
+                }
+                continue;
             }
-            continue;
         }
 
         // ── Telex circumflex: double same vowel ──
         // Search backwards from last vowel through vowel cluster.
         // Toggle behavior (Unikey): oo→ô, ooo→oo (3rd press undoes circumflex)
-        if tables::is_vowel(lc) && matches!(lc, 'a' | 'e' | 'o') && n > 0 {
+        if tables::is_vowel(lc) && matches!(lc, 'a' | 'e' | 'o') && !ls.is_empty() {
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
                 for i in (0..=vi).rev() {
@@ -698,6 +698,22 @@ mod tests {
         assert_eq!(tt("DD"), "Đ");
         assert_eq!(tt("Dd"), "Đ");
         assert_eq!(tt("dD"), "Đ");
+    }
+
+    #[test]
+    fn telex_dd_across_chars() {
+        // dd → đ should work across intervening characters (Unikey-compatible)
+        assert_eq!(tt("dad"), "đa");
+        assert_eq!(tt("dda"), "đa");
+        assert_eq!(tt("dadf"), "đà");
+        assert_eq!(tt("dads"), "đá");
+        assert_eq!(tt("dadr"), "đả");
+        assert_eq!(tt("dadx"), "đã");
+        assert_eq!(tt("dadj"), "đạ");
+        assert_eq!(tt("dangd"), "đang"); // second d converts first
+        assert_eq!(tt("dangdf"), "đàng"); // d...d converts first d
+        assert_eq!(tt("DAD"), "ĐA");
+        assert_eq!(tt("Dad"), "Đa");
     }
     #[test]
     fn telex_marks_traditional() {
@@ -1697,6 +1713,16 @@ fn comprehensive_vietnamese() {
         ("thangs", "tháng", 1),
         ("truwowngf", "trường", 1),
         ("luaatj", "luật", 1),
+        // ═══ dd ACROSS CHARACTERS (Unikey-compatible) ═══
+        ("dad", "đa", 1),
+        ("DAD", "ĐA", 1),
+        ("Dad", "Đa", 1),
+        ("dda", "đa", 1),
+        ("dadf", "đà", 1),
+        ("dads", "đá", 1),
+        ("dadr", "đả", 1),
+        ("dadx", "đã", 1),
+        ("dadj", "đạ", 1),
         // ═══ CONSONANT CLUSTERS ═══
         ("nhas", "nhá", 1),
         ("nghir", "nghỉ", 1),
