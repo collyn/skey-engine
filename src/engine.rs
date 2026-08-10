@@ -59,6 +59,9 @@ fn last_d_index(ls: &[Letter]) -> Option<usize> {
     ls.iter()
         .rposition(|lt| lt.c == 'd' && !lt.is_vowel && !lt.is_dstroke)
 }
+fn last_dstroke_index(ls: &[Letter]) -> Option<usize> {
+    ls.iter().rposition(|lt| lt.is_dstroke)
+}
 
 /// Find the last vowel that can be modified by `w`: a→ă, o→ơ, u→ư, e→ê.
 /// Used by the `w` key handler so that e.g. "toi" + w finds 'o' (not 'i').
@@ -138,8 +141,8 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
-        // dd → đ: search backwards for any unconverted d (not just adjacent),
-        // so "dad" → "đa" (Unikey-compatible).
+        // dd → đ: search backwards for any unconverted d.
+        // If no unconverted d but a đ exists, toggle it back (like vowel circumflex).
         if lc == 'd' {
             if let Some(di) = last_d_index(&ls) {
                 ls[di].is_dstroke = true;
@@ -147,6 +150,10 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                     ls[di].upper = true;
                 }
                 continue;
+            }
+            if let Some(di) = last_dstroke_index(&ls) {
+                ls[di].is_dstroke = false;
+                // fall through: push literal 'd' (toggle-off like ooo→oo)
             }
         }
         // Double-vowel circumflex: search backwards through vowel cluster.
@@ -316,7 +323,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
 
-        // ── Telex dd → đ (search backwards for any unconverted d) ──
+        // ── Telex dd → đ (toggle: 2nd d→đ, 3rd d toggles back) ──
         if lc == 'd' {
             if let Some(di) = last_d_index(&ls) {
                 ls[di].is_dstroke = true;
@@ -324,6 +331,10 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                     ls[di].upper = true;
                 }
                 continue;
+            }
+            if let Some(di) = last_dstroke_index(&ls) {
+                ls[di].is_dstroke = false;
+                // fall through: push literal 'd' (toggle-off like ooo→oo)
             }
         }
 
@@ -702,7 +713,7 @@ mod tests {
 
     #[test]
     fn telex_dd_across_chars() {
-        // dd → đ should work across intervening characters (Unikey-compatible)
+        // dd → đ works across intervening characters (Unikey-compatible)
         assert_eq!(tt("dad"), "đa");
         assert_eq!(tt("dda"), "đa");
         assert_eq!(tt("dadf"), "đà");
@@ -714,6 +725,13 @@ mod tests {
         assert_eq!(tt("dangdf"), "đàng"); // d...d converts first d
         assert_eq!(tt("DAD"), "ĐA");
         assert_eq!(tt("Dad"), "Đa");
+        // Toggle: 3rd d toggles đ back to d (like vowel circumflex ooo→oo)
+        assert_eq!(tt("dadd"), "dad");
+        assert_eq!(tt("ddda"), "dda"); // ddd toggle→dd, then a
+        // dddd: d→[d], d→[đ], d→toggle+push→[d,d], d→convert idx1→[d,đ]
+        assert_eq!(tt("dddd"), "dđ");
+        // ddddf: no vowel in [d,đ] → tone f falls through → "dđf"
+        assert_eq!(tt("ddddf"), "dđf");
     }
     #[test]
     fn telex_marks_traditional() {
@@ -1723,6 +1741,10 @@ fn comprehensive_vietnamese() {
         ("dadr", "đả", 1),
         ("dadx", "đã", 1),
         ("dadj", "đạ", 1),
+        // Toggle: 3rd d toggles đ back to d (like vowel circumflex ooo→oo)
+        ("dadd", "dad", 1),
+        ("ddd", "dd", 1),
+        ("dddd", "dđ", 1),
         // ═══ CONSONANT CLUSTERS ═══
         ("nhas", "nhá", 1),
         ("nghir", "nghỉ", 1),
