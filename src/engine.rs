@@ -141,19 +141,28 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
-        // dd → đ: search backwards for any unconverted d.
-        // If no unconverted d but a đ exists, toggle it back (like vowel circumflex).
+        // dd → đ: only create ONE đ. After that, all d's are literal
+        // (like Unikey). Search backwards for any unconverted d (not just
+        // adjacent) so "dad" → "đa".
+        // Toggle back to d only for non-consecutive d's (e.g. "dadd"→"dad").
         if lc == 'd' {
-            if let Some(di) = last_d_index(&ls) {
-                ls[di].is_dstroke = true;
-                if upper {
-                    ls[di].upper = true;
+            // Only convert if no đ exists yet (at most one đ per word).
+            if last_dstroke_index(&ls).is_none() {
+                if let Some(di) = last_d_index(&ls) {
+                    ls[di].is_dstroke = true;
+                    if upper {
+                        ls[di].upper = true;
+                    }
+                    continue;
                 }
-                continue;
             }
-            if let Some(di) = last_dstroke_index(&ls) {
-                ls[di].is_dstroke = false;
-                // fall through: push literal 'd' (toggle-off like ooo→oo)
+            // Toggle: only for non-consecutive d's.
+            let prev_is_d = ls.last().map_or(false, |lt| lt.c == 'd');
+            if !prev_is_d {
+                if let Some(di) = last_dstroke_index(&ls) {
+                    ls[di].is_dstroke = false;
+                    // fall through: push literal 'd' (toggle-off)
+                }
             }
         }
         // Double-vowel circumflex: search backwards through vowel cluster.
@@ -323,18 +332,23 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
 
-        // ── Telex dd → đ (toggle: 2nd d→đ, 3rd d toggles back) ──
+        // ── Telex dd → đ (at most one đ, toggle only non-consecutive) ──
         if lc == 'd' {
-            if let Some(di) = last_d_index(&ls) {
-                ls[di].is_dstroke = true;
-                if upper {
-                    ls[di].upper = true;
+            if last_dstroke_index(&ls).is_none() {
+                if let Some(di) = last_d_index(&ls) {
+                    ls[di].is_dstroke = true;
+                    if upper {
+                        ls[di].upper = true;
+                    }
+                    continue;
                 }
-                continue;
             }
-            if let Some(di) = last_dstroke_index(&ls) {
-                ls[di].is_dstroke = false;
-                // fall through: push literal 'd' (toggle-off like ooo→oo)
+            let prev_is_d = ls.last().map_or(false, |lt| lt.c == 'd');
+            if !prev_is_d {
+                if let Some(di) = last_dstroke_index(&ls) {
+                    ls[di].is_dstroke = false;
+                    // fall through: push literal 'd' (toggle-off)
+                }
             }
         }
 
@@ -725,13 +739,16 @@ mod tests {
         assert_eq!(tt("dangdf"), "đàng"); // d...d converts first d
         assert_eq!(tt("DAD"), "ĐA");
         assert_eq!(tt("Dad"), "Đa");
-        // Toggle: 3rd d toggles đ back to d (like vowel circumflex ooo→oo)
+        // Toggle: non-consecutive d toggles đ back to d
         assert_eq!(tt("dadd"), "dad");
-        assert_eq!(tt("ddda"), "dda"); // ddd toggle→dd, then a
-        // dddd: d→[d], d→[đ], d→toggle+push→[d,d], d→convert idx1→[d,đ]
-        assert_eq!(tt("dddd"), "dđ");
-        // ddddf: no vowel in [d,đ] → tone f falls through → "dđf"
-        assert_eq!(tt("ddddf"), "dđf");
+        // Consecutive d's after first đ: all literal (like Unikey)
+        assert_eq!(tt("ddd"), "đd");
+        assert_eq!(tt("dddd"), "đdd");
+        assert_eq!(tt("ddddd"), "đddd");
+        // ddda: ddd→đd then a → "đda"
+        assert_eq!(tt("ddda"), "đda");
+        // ddddf: no vowel in [đ,d,d] → tone f falls through
+        assert_eq!(tt("ddddf"), "đddf");
     }
     #[test]
     fn telex_marks_traditional() {
@@ -1741,10 +1758,11 @@ fn comprehensive_vietnamese() {
         ("dadr", "đả", 1),
         ("dadx", "đã", 1),
         ("dadj", "đạ", 1),
-        // Toggle: 3rd d toggles đ back to d (like vowel circumflex ooo→oo)
+        // Toggle only for non-consecutive d's; at most one đ
         ("dadd", "dad", 1),
-        ("ddd", "dd", 1),
-        ("dddd", "dđ", 1),
+        // Consecutive d's after first đ: all literal
+        ("ddd", "đd", 1),
+        ("dddd", "đdd", 1),
         // ═══ CONSONANT CLUSTERS ═══
         ("nhas", "nhá", 1),
         ("nghir", "nghỉ", 1),
