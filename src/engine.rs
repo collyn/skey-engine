@@ -70,7 +70,7 @@ fn last_w_target_index(ls: &[Letter]) -> Option<usize> {
         .rposition(|lt| lt.is_vowel && matches!(lt.c, 'a' | 'o' | 'u' | 'e'))
 }
 
-fn tone_vowel_index(ls: &[Letter], _modern: bool) -> Option<usize> {
+fn tone_vowel_index(ls: &[Letter], modern: bool) -> Option<usize> {
     let end = last_vowel_index(ls)?;
     let mut start = end;
     while start > 0 && ls[start - 1].is_vowel {
@@ -110,7 +110,9 @@ fn tone_vowel_index(ls: &[Letter], _modern: bool) -> Option<usize> {
     }
     let (c1, c2) = (ls[start].c, ls[end].c);
     if (c1 == 'o' && c2 == 'a') || (c1 == 'o' && c2 == 'e') || (c1 == 'u' && c2 == 'y') {
-        return Some(end); // always 2nd vowel — use typing order for òa (ofa) vs oà (oaf)
+        // modern (new style): tone on 2nd vowel (hoà, thuỳ)
+        // traditional:        tone on 1st vowel (hòa, thùy)
+        return if modern { Some(end) } else { Some(start) };
     }
     Some(start) // default open diphthong: tone on first vowel
 }
@@ -265,23 +267,58 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
         ls.push(Letter::new(ch, upper));
-        // Tone reassignment: when a new vowel is pushed after a gi/qu
-        // digraph vowel that has a tone, move the tone to the new vowel.
+        // Tone reassignment: when a new vowel is pushed, move tone if the
+        // vowel structure has changed.
         // e.g. "gis"→"gí" then "a"→"giá" (tone moves from i to a).
+        // e.g. "ngoaf"→"ngòa" then "i"→"ngoài" (triphthong, tone to middle).
         if ls.len() >= 2 {
             let last = ls.len() - 1;
             if ls[last].is_vowel {
-                for i in (0..last).rev() {
-                    if !ls[i].is_vowel { break; }
-                    if ls[i].tone != 0 {
-                        if ls[i].c == 'i' && i > 0 && ls[i - 1].c == 'g' {
-                            ls[last].tone = ls[i].tone;
-                            ls[i].tone = 0;
-                        } else if ls[i].c == 'u' && i > 0 && ls[i - 1].c == 'q' {
-                            ls[last].tone = ls[i].tone;
-                            ls[i].tone = 0;
+                // Find first vowel in the cluster
+                let first_vowel = (0..last).find(|&j| ls[j].is_vowel);
+                if let Some(fv) = first_vowel {
+                    let vcount = last - fv + 1;
+                    // gi/qu digraph: move tone from digraph vowel to new vowel
+                    if vcount >= 2 {
+                        for j in (fv..last).rev() {
+                            if ls[j].tone != 0 {
+                                let move_tone =
+                                    (ls[j].c == 'i' && j > 0 && ls[j - 1].c == 'g') ||
+                                    (ls[j].c == 'u' && j > 0 && ls[j - 1].c == 'q');
+                                if move_tone {
+                                    ls[last].tone = ls[j].tone;
+                                    ls[j].tone = 0;
+                                }
+                                break;
+                            }
                         }
-                        break;
+                    }
+                    // Triphthong: when expanding from 2 to 3+ vowels, move
+                    // tone to the correct vowel (middle for most, 3rd for uyê).
+                    if vcount >= 3 {
+                        for j in (fv..last).rev() {
+                            if ls[j].tone != 0 {
+                                let t = ls[j].tone;
+                                ls[j].tone = 0;
+                                let target = if ls[fv].c == 'u'
+                                    && fv + 2 <= last
+                                    && ls[fv + 1].c == 'y'
+                                    && ls[fv + 2].c == 'e'
+                                {
+                                    fv + 2 // uyê → tone on ê
+                                } else {
+                                    fv + 1 // default → tone on middle vowel
+                                };
+                                // Guard: move only if target is within bounds
+                                // and the current tone is on a non-target vowel
+                                if target <= last && target != j {
+                                    ls[target].tone = t;
+                                } else {
+                                    ls[j].tone = t; // restore
+                                }
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -477,22 +514,53 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
         }
 
         ls.push(Letter::new(ch, upper));
-        // Tone reassignment: when a new vowel is pushed after a gi/qu
-        // digraph vowel that has a tone, move the tone to the new vowel.
+        // Tone reassignment: when a new vowel is pushed, move tone if the
+        // vowel structure has changed (gi/qu digraph, triphthong expansion).
         if ls.len() >= 2 {
             let last = ls.len() - 1;
             if ls[last].is_vowel {
-                for i in (0..last).rev() {
-                    if !ls[i].is_vowel { break; }
-                    if ls[i].tone != 0 {
-                        if ls[i].c == 'i' && i > 0 && ls[i - 1].c == 'g' {
-                            ls[last].tone = ls[i].tone;
-                            ls[i].tone = 0;
-                        } else if ls[i].c == 'u' && i > 0 && ls[i - 1].c == 'q' {
-                            ls[last].tone = ls[i].tone;
-                            ls[i].tone = 0;
+                let first_vowel = (0..last).find(|&j| ls[j].is_vowel);
+                if let Some(fv) = first_vowel {
+                    let vcount = last - fv + 1;
+                    // gi/qu digraph: move tone from digraph vowel to new vowel
+                    if vcount >= 2 {
+                        for j in (fv..last).rev() {
+                            if ls[j].tone != 0 {
+                                let move_tone =
+                                    (ls[j].c == 'i' && j > 0 && ls[j - 1].c == 'g') ||
+                                    (ls[j].c == 'u' && j > 0 && ls[j - 1].c == 'q');
+                                if move_tone {
+                                    ls[last].tone = ls[j].tone;
+                                    ls[j].tone = 0;
+                                }
+                                break;
+                            }
                         }
-                        break;
+                    }
+                    // Triphthong expansion: 2→3+ vowels, move tone to
+                    // correct position (middle vowel, or 3rd for uyê).
+                    if vcount >= 3 {
+                        for j in (fv..last).rev() {
+                            if ls[j].tone != 0 {
+                                let t = ls[j].tone;
+                                ls[j].tone = 0;
+                                let target = if ls[fv].c == 'u'
+                                    && fv + 2 <= last
+                                    && ls[fv + 1].c == 'y'
+                                    && ls[fv + 2].c == 'e'
+                                {
+                                    fv + 2
+                                } else {
+                                    fv + 1
+                                };
+                                if target <= last && target != j {
+                                    ls[target].tone = t;
+                                } else {
+                                    ls[j].tone = t;
+                                }
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -837,7 +905,7 @@ mod tests {
     fn telex_tone_traditional() {
         // traditional: tone on 2nd vowel for oa/oe/uy open diphthongs
         assert_eq!(tt("toans"), "toán");
-        assert_eq!(tt("hoaf"), "hoà");
+        assert_eq!(tt("hoaf"), "hòa");
         assert_eq!(tt("thowif"), "thời");
         assert_eq!(tt("cuar"), "của");
     }
@@ -906,7 +974,7 @@ mod tests {
         assert_eq!(tt("saosf"), "sào"); // sáo + f → sào (acute→grave)
         assert_eq!(tt("saojs"), "sáo"); // sạ + s → sáo (dot→acute)
         assert_eq!(tt("saojr"), "sảo"); // sạo + r → sảo (dot→hook)
-        assert_eq!(tt("hoasf"), "hoà"); // hóa + f → hoà (acute→grave)
+        assert_eq!(tt("hoasf"), "hòa"); // hóa + f → hòa (acute→grave, traditional on o)
         assert_eq!(tt("toansr"), "toản"); // toán + r → toản (acute→hook)
     }
     #[test]
@@ -1005,8 +1073,8 @@ mod tests {
         // òa typed as ofa (tone between vowels), oà typed as oaf (tone after)
         assert_eq!(t("oaf"), "oà"); // tone after all vowels → 2nd
         assert_eq!(t("ofa"), "òa"); // tone between vowels → 1st
-        assert_eq!(tt("oaf"), "oà");
-        assert_eq!(tt("ofa"), "òa"); // same
+        assert_eq!(tt("oaf"), "òa"); // traditional: tone on 1st vowel
+        assert_eq!(tt("ofa"), "òa"); // tone between vowels → 1st (typing order)
     }
 
     // ── TeipVni (combined Telex + VNI) tests ─────────────────────────
@@ -1284,7 +1352,7 @@ fn full_parity() {
         },
         Case {
             input: "hoaf",
-            expected: "hoà",
+            expected: "hòa",
             method: 1,
         },
         Case {
@@ -1682,19 +1750,19 @@ fn comprehensive_vietnamese() {
         ("uyns", "uýn", 1),
         ("uynf", "uỳn", 1),
         ("uynr", "uỷn", 1),
-        // ═══ oa, oe, uy — open (traditional: tone on 2nd vowel) ═══
-        ("oas", "oá", 1),
-        ("oaf", "oà", 1),
-        ("oar", "oả", 1),
-        ("oax", "oã", 1),
-        ("oaj", "oạ", 1),
-        ("oes", "oé", 1),
-        ("oef", "oè", 1),
-        ("uys", "uý", 1),
-        ("uyf", "uỳ", 1),
-        ("uyr", "uỷ", 1),
-        ("uyx", "uỹ", 1),
-        ("uyj", "uỵ", 1),
+        // ═══ oa, oe, uy — open (traditional: tone on 1st vowel) ═══
+        ("oas", "óa", 1),
+        ("oaf", "òa", 1),
+        ("oar", "ỏa", 1),
+        ("oax", "õa", 1),
+        ("oaj", "ọa", 1),
+        ("oes", "óe", 1),
+        ("oef", "òe", 1),
+        ("uys", "úy", 1),
+        ("uyf", "ùy", 1),
+        ("uyr", "ủy", 1),
+        ("uyx", "ũy", 1),
+        ("uyj", "ụy", 1),
         // ═══ TRIPHTHONGS ═══
         // oai, oay (tone on middle vowel)
         ("oais", "oái", 1),
