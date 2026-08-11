@@ -113,6 +113,71 @@ pub unsafe extern "C" fn skey_engine_transform(
     CString::new(e.transform(s)).unwrap_or_default().into_raw()
 }
 
+// ── Charset FFI ──────────────────────────────────────────────────────
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_charset_encode(
+    input: *const c_char,
+    charset: i32,
+    out_len: *mut usize,
+) -> *mut u8 {
+    if input.is_null() || out_len.is_null() { return std::ptr::null_mut(); }
+    let s = match unsafe { CStr::from_ptr(input) }.to_str() {
+        Ok(s) => s, Err(_) => return std::ptr::null_mut(),
+    };
+    let cs = match charset {
+        0 => charset::VietCharset::Unicode,
+        1 => charset::VietCharset::TCVN3,
+        2 => charset::VietCharset::VNIWin,
+        3 => charset::VietCharset::WinCP1258,
+        4 => charset::VietCharset::VIQR,
+        _ => charset::VietCharset::Unicode,
+    };
+    let encoded = charset::encode(s, cs);
+    let len = encoded.len();
+    let ptr = libc::malloc(len).cast::<u8>();
+    if ptr.is_null() { return std::ptr::null_mut(); }
+    unsafe { std::ptr::copy_nonoverlapping(encoded.as_ptr(), ptr, len); }
+    unsafe { *out_len = len; }
+    ptr
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_charset_decode(
+    input: *const u8,
+    len: usize,
+    charset: i32,
+) -> *mut c_char {
+    if input.is_null() { return std::ptr::null_mut(); }
+    let bytes = unsafe { std::slice::from_raw_parts(input, len) };
+    let cs = match charset {
+        0 => charset::VietCharset::Unicode,
+        1 => charset::VietCharset::TCVN3,
+        2 => charset::VietCharset::VNIWin,
+        3 => charset::VietCharset::WinCP1258,
+        4 => charset::VietCharset::VIQR,
+        _ => charset::VietCharset::Unicode,
+    };
+    let decoded = charset::decode(bytes, cs);
+    CString::new(decoded).unwrap_or_default().into_raw()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_charset_remove_tone(input: *const c_char) -> *mut c_char {
+    if input.is_null() { return std::ptr::null_mut(); }
+    let s = match unsafe { CStr::from_ptr(input) }.to_str() {
+        Ok(s) => s, Err(_) => return std::ptr::null_mut(),
+    };
+    CString::new(charset::remove_tone(s)).unwrap_or_default().into_raw()
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_charset_free_buf(ptr: *mut u8) {
+    if !ptr.is_null() { unsafe { libc::free(ptr.cast()); } }
+}
+
+// ── C FFI (continued) ────────────────────────────────────────────────
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn skey_engine_is_valid(s: *const c_char) -> i32 {
     if s.is_null() { return 0; }

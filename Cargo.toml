@@ -1,6 +1,6 @@
 [package]
 name = "skey-engine"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 description = "Stateless Vietnamese input method engine"
 authors = ["Nguyễn Tiến Huy <collyn094@gmail.com>"]
@@ -14,6 +14,7 @@ categories = ["text-processing", "internationalization"]
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

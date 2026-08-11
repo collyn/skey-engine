@@ -34,6 +34,26 @@ int32_t skey_engine_is_valid(const char *s);
 // Free a string returned by skey_engine_transform
 void skey_free_string(char *s);
 
+// ── Charset conversion ────────────────────────────────────────────────
+// Charset IDs (matches VietCharset enum in Rust):
+//   0 = Unicode, 1 = TCVN3, 2 = VNI-WIN, 3 = WinCP1258, 4 = VIQR
+
+// Encode UTF-8 string to target charset bytes.  out_len receives the
+// number of bytes written.  Caller must free the returned buffer with
+// skey_charset_free_buf().
+uint8_t *skey_charset_encode(const char *input, int32_t charset,
+                             size_t *out_len);
+
+// Decode charset bytes to UTF-8 string.  Caller must free with
+// skey_free_string().
+char *skey_charset_decode(const uint8_t *input, size_t len, int32_t charset);
+
+// Remove tone marks from UTF-8 Vietnamese text.
+char *skey_charset_remove_tone(const char *input);
+
+// Free buffer returned by skey_charset_encode.
+void skey_charset_free_buf(uint8_t *buf);
+
 #ifdef __cplusplus
 }
 #endif

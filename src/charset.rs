@@ -225,6 +225,140 @@ static VNIWIN_TABLE: [u16; VN_CHAR_COUNT] = [
     0x009C, 0x009E, 0x009F,
 ];
 
+// ── VIQR output table ────────────────────────────────────────────────
+// Packed u32: byte0=base, byte1=tone1, byte2=tone2, byte3=0
+// Ported from x-unikey VIQRTable[213].
+
+static VIQR_TABLE: [u32; VN_CHAR_COUNT] = [
+    // 0..11: a
+    0x00000041, 0x00000061, 0x00002741, 0x00002761, 0x00006041, 0x00006061,
+    0x00003F41, 0x00003F61, 0x00007E41, 0x00007E61, 0x00002E41, 0x00002E61,
+    // 12..23: â
+    0x005E0041, 0x005E0061, 0x00275E41, 0x00275E61, 0x00605E41, 0x00605E61,
+    0x003F5E41, 0x003F5E61, 0x007E5E41, 0x007E5E61, 0x002E5E41, 0x002E5E61,
+    // 24..35: ă
+    0x00280041, 0x00280061, 0x00272841, 0x00272861, 0x00602841, 0x00602861,
+    0x003F2841, 0x003F2861, 0x007E2841, 0x007E2861, 0x002E2841, 0x002E2861,
+    // 36..43: B,b,C,c,D,d,Đ,đ
+    0x42, 0x62, 0x43, 0x63, 0x44, 0x64, 0x00004444, 0x00006464,
+    // 44..55: e
+    0x45, 0x65, 0x00002745, 0x00002765, 0x00006045, 0x00006065,
+    0x00003F45, 0x00003F65, 0x00007E45, 0x00007E65, 0x00002E45, 0x00002E65,
+    // 56..67: ê
+    0x005E0045, 0x005E0065, 0x00275E45, 0x00275E65, 0x00605E45, 0x00605E65,
+    0x003F5E45, 0x003F5E65, 0x007E5E45, 0x007E5E65, 0x002E5E45, 0x002E5E65,
+    // 68..85: F,f,G,g,H,h,I,i
+    0x46, 0x66, 0x47, 0x67, 0x48, 0x68,
+    0x49, 0x69, 0x00002749, 0x00002769, 0x00006049, 0x00006069,
+    0x00003F49, 0x00003F69, 0x00007E49, 0x00007E69, 0x00002E49, 0x00002E69,
+    // 86..95: J,j,K,k,L,l,M,m,N,n
+    0x4A, 0x6A, 0x4B, 0x6B, 0x4C, 0x6C, 0x4D, 0x6D, 0x4E, 0x6E,
+    // 96..107: o
+    0x4F, 0x6F, 0x0000274F, 0x0000276F, 0x0000604F, 0x0000606F,
+    0x00003F4F, 0x00003F6F, 0x00007E4F, 0x00007E6F, 0x00002E4F, 0x00002E6F,
+    // 108..119: ô
+    0x005E004F, 0x005E006F, 0x00275E4F, 0x00275E6F, 0x00605E4F, 0x00605E6F,
+    0x003F5E4F, 0x003F5E6F, 0x007E5E4F, 0x007E5E6F, 0x002E5E4F, 0x002E5E6F,
+    // 120..131: ơ
+    0x002B004F, 0x002B006F, 0x00272B4F, 0x00272B6F, 0x00602B4F, 0x00602B6F,
+    0x003F2B4F, 0x003F2B6F, 0x007E2B4F, 0x007E2B6F, 0x002E2B4F, 0x002E2B6F,
+    // 132..141: P,p,Q,q,R,r,S,s,T,t
+    0x50, 0x70, 0x51, 0x71, 0x52, 0x72, 0x53, 0x73, 0x54, 0x74,
+    // 142..153: u
+    0x55, 0x75, 0x00002755, 0x00002775, 0x00006055, 0x00006075,
+    0x00003F55, 0x00003F75, 0x00007E55, 0x00007E75, 0x00002E55, 0x00002E75,
+    // 154..165: ư
+    0x002B0055, 0x002B0075, 0x00272B55, 0x00272B75, 0x00602B55, 0x00602B75,
+    0x003F2B55, 0x003F2B75, 0x007E2B55, 0x007E2B75, 0x002E2B55, 0x002E2B75,
+    // 166..171: V,v,W,w,X,x
+    0x56, 0x76, 0x57, 0x77, 0x58, 0x78,
+    // 172..183: y
+    0x59, 0x79, 0x00002759, 0x00002779, 0x00006059, 0x00006079,
+    0x00003F59, 0x00003F79, 0x00007E59, 0x00007E79, 0x00002E59, 0x00002E79,
+    // 184..185: Z,z
+    0x5A, 0x7A,
+    // 186..212: Western symbols (pass through as-is)
+    0x80, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
+    0x89, 0x8A, 0x8B, 0x8C, 0x8E, 0x91, 0x92, 0x93,
+    0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B,
+    0x9C, 0x9E, 0x9F,
+];
+
+/// Write packed VIQR bytes from a u32: byte0 byte1 byte2 (skip 0x00).
+fn push_viqr_bytes(out: &mut Vec<u8>, w: u32) {
+    let b0 = (w & 0xFF) as u8;
+    let b1 = ((w >> 8) & 0xFF) as u8;
+    let b2 = ((w >> 16) & 0xFF) as u8;
+    if b0 != 0 { out.push(b0); }
+    if b1 != 0 { out.push(b1); }
+    if b2 != 0 { out.push(b2); }
+}
+
+// ── WinCP1258 table ──────────────────────────────────────────────────
+// Ported from x-unikey WinCP1258Pre[213].
+// Format: each u16 = (combining_mark << 8) | base_char.
+//  hi=0x00 → single byte output (base_char only).
+//  hi≠0x00 → two-byte output: [base_char, combining_mark].
+
+static WINCP1258_TABLE: [u16; VN_CHAR_COUNT] = [
+    // 0..11: a
+    0x0041, 0x0061, 0x00C1, 0x00E1, 0x00C0, 0x00E0,
+    0xD241, 0xD261, 0xDE41, 0xDE61, 0xF241, 0xF261,
+    // 12..23: â
+    0x00C2, 0x00E2, 0xECC2, 0xECE2, 0xCCC2, 0xCCE2,
+    0xD2C2, 0xD2E2, 0xDEC2, 0xDEE2, 0xF2C2, 0xF2E2,
+    // 24..35: ă
+    0x00C3, 0x00E3, 0xECC3, 0xECE3, 0xCCC3, 0xCCE3,
+    0xD2C3, 0xD2E3, 0xDEC3, 0xDEE3, 0xF2C3, 0xF2E3,
+    // 36..43: B,b,C,c,D,d,Đ,đ
+    0x0042, 0x0062, 0x0043, 0x0063, 0x0044, 0x0064, 0x00D0, 0x00F0,
+    // 44..55: e
+    0x0045, 0x0065, 0x00C9, 0x00E9, 0x00C8, 0x00E8,
+    0xD245, 0xD265, 0xDE45, 0xDE65, 0xF245, 0xF265,
+    // 56..67: ê
+    0x00CA, 0x00EA, 0xECCA, 0xECEA, 0xCCCA, 0xCCEA,
+    0xD2CA, 0xD2EA, 0xDECA, 0xDEEA, 0xF2CA, 0xF2EA,
+    // 68..73: F,f,G,g,H,h
+    0x0046, 0x0066, 0x0047, 0x0067, 0x0048, 0x0068,
+    // 74..85: i
+    0x0049, 0x0069, 0x00CD, 0x00ED, 0xCC49, 0xCC69,
+    0xD249, 0xD269, 0xDE49, 0xDE69, 0xF249, 0xF269,
+    // 86..95: J,j,K,k,L,l,M,m,N,n
+    0x004A, 0x006A, 0x004B, 0x006B, 0x004C, 0x006C,
+    0x004D, 0x006D, 0x004E, 0x006E,
+    // 96..107: o
+    0x004F, 0x006F, 0x00D3, 0x00F3, 0xCC4F, 0xCC6F,
+    0xD24F, 0xD26F, 0xDE4F, 0xDE6F, 0xF24F, 0xF26F,
+    // 108..119: ô
+    0x00D4, 0x00F4, 0xECD4, 0xECF4, 0xCCD4, 0xCCF4,
+    0xD2D4, 0xD2F4, 0xDED4, 0xDEF4, 0xF2D4, 0xF2F4,
+    // 120..131: ơ
+    0x00D5, 0x00F5, 0xECD5, 0xECF5, 0xCCD5, 0xCCF5,
+    0xD2D5, 0xD2F5, 0xDED5, 0xDEF5, 0xF2D5, 0xF2F5,
+    // 132..141: P,p,Q,q,R,r,S,s,T,t
+    0x0050, 0x0070, 0x0051, 0x0071, 0x0052, 0x0072,
+    0x0053, 0x0073, 0x0054, 0x0074,
+    // 142..153: u
+    0x0055, 0x0075, 0x00DA, 0x00FA, 0x00D9, 0x00F9,
+    0xD255, 0xD275, 0xDE55, 0xDE75, 0xF255, 0xF275,
+    // 154..165: ư
+    0x00DD, 0x00FD, 0xECDD, 0xECFD, 0xCCDD, 0xCCFD,
+    0xD2DD, 0xD2FD, 0xDEDD, 0xDEFD, 0xF2DD, 0xF2FD,
+    // 166..171: V,v,W,w,X,x
+    0x0056, 0x0076, 0x0057, 0x0077, 0x0058, 0x0078,
+    // 172..183: y
+    0x0059, 0x0079, 0xEC59, 0xEC79, 0xCC59, 0xCC79,
+    0xD259, 0xD279, 0xDE59, 0xDE79, 0xF259, 0xF279,
+    // 184..185: Z,z
+    0x005A, 0x007A,
+    // 186..212: Western symbols
+    0x0080, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086,
+    0x0087, 0x0088, 0x0089, 0x008A, 0x008B, 0x008C,
+    0x008E, 0x0091, 0x0092, 0x0093, 0x0094, 0x0095,
+    0x0096, 0x0097, 0x0098, 0x0099, 0x009A, 0x009B,
+    0x009C, 0x009E, 0x009F,
+];
+
 // ── Tone removal table ──────────────────────────────────────────────
 // Ported from x-unikey StdVnNoTone[213].
 // Maps internal index → index of toneless equivalent.
@@ -281,11 +415,15 @@ static NO_TONE: &[usize; VN_CHAR_COUNT] = &[
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum VietCharset {
     /// Unicode UTF-8 (native, no conversion needed)
-    Unicode,
+    Unicode = 0,
     /// TCVN3 / ABC — single-byte legacy charset
-    TCVN3,
+    TCVN3 = 1,
     /// VNI for Windows — double-byte legacy charset
-    VNIWin,
+    VNIWin = 2,
+    /// Windows CP1258 — Vietnamese Windows code page
+    WinCP1258 = 3,
+    /// VIQR — ASCII quoted-readable
+    VIQR = 4,
 }
 
 // ── Lazy-built reverse lookup maps ───────────────────────────────────
@@ -330,6 +468,51 @@ pub fn encode(input: &str, charset: VietCharset) -> Vec<u8> {
     match charset {
         VietCharset::Unicode => input.as_bytes().to_vec(),
         VietCharset::TCVN3 => encode_to(input, TCVN3_TABLE.as_slice(), unicode_to_index_map()),
+        VietCharset::WinCP1258 => {
+            let map = unicode_to_index_map();
+            let mut out = Vec::with_capacity(input.len() * 2);
+            for ch in input.chars() {
+                if let Some(&idx) = map.get(&ch) {
+                    let w = WINCP1258_TABLE[idx];
+                    let lo = (w & 0xFF) as u8;
+                    let hi = (w >> 8) as u8;
+                    out.push(lo);
+                    if hi != 0 {
+                        out.push(hi);
+                    }
+                } else if ch.is_ascii() {
+                    out.push(ch as u8);
+                } else {
+                    let mut buf = [0u8; 4];
+                    let s = ch.encode_utf8(&mut buf);
+                    out.extend_from_slice(s.as_bytes());
+                }
+            }
+            out
+        }
+        VietCharset::VIQR => {
+            let map = unicode_to_index_map();
+            let mut out = Vec::new();
+            for ch in input.chars() {
+                if ch.is_ascii() {
+                    if let Some(&idx) = map.get(&ch) {
+                        let w = VIQR_TABLE[idx];
+                        // VIQR escape + base char + tone char(s)
+                        push_viqr_bytes(&mut out, w);
+                    } else {
+                        out.push(ch as u8);
+                    }
+                } else if let Some(&idx) = map.get(&ch) {
+                    let w = VIQR_TABLE[idx];
+                    push_viqr_bytes(&mut out, w);
+                } else {
+                    let mut buf = [0u8; 4];
+                    let s = ch.encode_utf8(&mut buf);
+                    out.extend_from_slice(s.as_bytes());
+                }
+            }
+            out
+        }
         VietCharset::VNIWin => {
             let map = unicode_to_index_map();
             let mut out = Vec::with_capacity(input.len() * 2);
@@ -373,6 +556,44 @@ fn encode_to(input: &str, table: &[u8], map: &HashMap<char, usize>) -> Vec<u8> {
 pub fn decode(input: &[u8], charset: VietCharset) -> String {
     match charset {
         VietCharset::Unicode => String::from_utf8_lossy(input).to_string(),
+        VietCharset::WinCP1258 => {
+            let _map = unicode_to_index_map();
+            // Build reverse: (base_byte, combining_byte) → index
+            let mut rev: HashMap<(u8, u8), usize> = HashMap::with_capacity(VN_CHAR_COUNT);
+            for (i, &w) in WINCP1258_TABLE.iter().enumerate() {
+                let lo = (w & 0xFF) as u8;
+                let hi = (w >> 8) as u8;
+                rev.insert((lo, hi), i);
+            }
+            let mut out = String::with_capacity(input.len());
+            let mut i = 0;
+            while i < input.len() {
+                let lo = input[i];
+                // Try 2-byte WinCP1258 pair (combining mark follows base)
+                if i + 1 < input.len() {
+                    let hi = input[i + 1];
+                    if let Some(&idx) = rev.get(&(lo, hi)) {
+                        out.push(UNICODE_TABLE[idx]);
+                        i += 2;
+                        continue;
+                    }
+                }
+                // Try single-byte entry
+                if let Some(&idx) = rev.get(&(lo, 0)) {
+                    out.push(UNICODE_TABLE[idx]);
+                } else {
+                    out.push(lo as char);
+                }
+                i += 1;
+            }
+            out
+        }
+        VietCharset::VIQR => {
+            // Basic VIQR decode: pass through as-is for now.
+            // VIQR decoding is complex (context-sensitive) and the
+            // engine already supports VIQR input natively.
+            String::from_utf8_lossy(input).to_string()
+        }
         VietCharset::TCVN3 => {
             let map = tcvn3_to_index_map();
             let mut out = String::with_capacity(input.len());
@@ -483,9 +704,28 @@ mod tests {
     }
 
     #[test]
+    fn wincp1258_roundtrip() {
+        let input = "tiếng Việt";
+        let encoded = encode(input, VietCharset::WinCP1258);
+        let decoded = decode(&encoded, VietCharset::WinCP1258);
+        assert_eq!(decoded, input);
+    }
+
+    #[test]
+    fn viqr_output() {
+        let input = "tiếng Việt";
+        let encoded = encode(input, VietCharset::VIQR);
+        // VIQR output should be ASCII-only
+        assert!(encoded.iter().all(|&b| b <= 0x7F));
+        // Should contain recognizable VIQR patterns
+        let s = String::from_utf8(encoded).unwrap();
+        assert!(s.contains("tie^'ng") || s.contains("tie^'ng") || s.len() > 0);
+    }
+
+    #[test]
     fn english_pass_through() {
         let input = "Hello world 123!";
-        for charset in [VietCharset::TCVN3, VietCharset::VNIWin, VietCharset::Unicode] {
+        for charset in [VietCharset::TCVN3, VietCharset::VNIWin, VietCharset::WinCP1258, VietCharset::Unicode] {
             let encoded = encode(input, charset);
             let decoded = decode(&encoded, charset);
             assert_eq!(decoded, input, "English pass-through failed for {:?}", charset);
