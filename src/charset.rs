@@ -929,10 +929,9 @@ pub fn decode(input: &[u8], charset: VietCharset) -> String {
             out
         }
         VietCharset::VIQR => {
-            // Basic VIQR decode: pass through as-is for now.
-            // VIQR decoding is complex (context-sensitive) and the
-            // engine already supports VIQR input natively.
-            String::from_utf8_lossy(input).to_string()
+            // VIQR decode: use the engine's built-in VIQR converter
+            let s = String::from_utf8_lossy(input);
+            crate::engine::convert_viqr(&s)
         }
         VietCharset::TCVN3 => {
             let map = tcvn3_to_index_map();
