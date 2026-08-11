@@ -57,6 +57,7 @@ static VO_1: &[Token] = &[
     (['a', '\0', '\0', '\0'], 1),
     (['i', 'ê', '\0', '\0'], 2),
     (['o', 'a', '\0', '\0'], 2),
+    (['u', 'e', '\0', '\0'], 2),
     (['u', 'y', 'ê', '\0'], 3),
     (['y', 'ê', '\0', '\0'], 2),
 ];
@@ -125,7 +126,7 @@ static LC_4: &[Token] = &[(['c', '\0', '\0', '\0'], 1)];
 static LC_ROWS: &[&[Token]] = &[LC_0, LC_1, LC_2, LC_3, LC_4];
 
 const CV_ALLOWED_MASKS: [u16; 5] = [
-    (1 << 0) | (1 << 1) | (1 << 2) | (1 << 5),
+    (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 5),
     (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5),
     (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 5),
     1 << 6,
@@ -133,14 +134,14 @@ const CV_ALLOWED_MASKS: [u16; 5] = [
 ];
 
 const VC_ALLOWED_MASKS: [u16; 8] = [
-    (1 << 0) | (1 << 2),
-    (1 << 0) | (1 << 1) | (1 << 2),
-    (1 << 1) | (1 << 2),
-    (1 << 1) | (1 << 2),
-    0,
-    0,
-    1 << 3,
-    1 << 4,
+    (1 << 0) | (1 << 1) | (1 << 2),  // ê,i,ua,uê,uy,y + {ch,nh, c,ng, m,n,p,t}
+    (1 << 0) | (1 << 1) | (1 << 2),  // a,iê,oa,ue,uyê,yê + {ch,nh, c,ng, m,n,p,t}
+    (1 << 0) | (1 << 1) | (1 << 2),  // â,ă,e,o,oo,ô,ơ,oe,u,ư,uâ,uô,ươ + {ch,nh, c,ng, m,n,p,t}
+    (1 << 1) | (1 << 2),             // oă + {c,ng, m,n,p,t}
+    0,                                // uơ — no suffix
+    0,                                // diphthongs/triphthongs — no suffix
+    1 << 3,                           // ă + {k}
+    1 << 4,                           // i + {c}
 ];
 
 // ── Utility ────────────────────────────────────────────────────────
@@ -318,13 +319,23 @@ fn split_cvc(s: &str) -> (Vec<char>, Vec<char>, Vec<char>) {
     let lc: Vec<char> = chars[lc_start..].to_vec();
 
     // "gi" + vowel: move 'i' from vo to fc (gi is a consonant digraph FC_2)
+    // gi + i (without a separate following vowel) is not valid Vietnamese:
+    //   "gì"  — ok, no consonant suffix
+    //   "gim" — invalid, gi + i + consonant
     if !vo.is_empty() && fc.len() == 1 && fc[0] == 'g' && vo[0] == 'i' {
         fc.push(vo.remove(0)); // move 'i' from vowel to first consonant
+        if vo.is_empty() && !lc.is_empty() {
+            return (fc, vo, lc); // invalid: gi+i+consonant, caught below
+        }
     }
 
     // "qu" + vowel: move 'u' from vo to fc (qu is a consonant digraph FC_1)
+    // qu + u (without a separate following vowel) is not valid Vietnamese
     if !vo.is_empty() && fc.len() == 1 && fc[0] == 'q' && vo[0] == 'u' {
         fc.push(vo.remove(0)); // move 'u' from vowel to first consonant
+        if vo.is_empty() && !lc.is_empty() {
+            return (fc, vo, lc); // invalid: qu+u+consonant, caught below
+        }
     }
 
     (fc, vo, lc)
@@ -340,6 +351,24 @@ pub fn is_valid_cvc(s: &str) -> bool {
     }
 
     let (fc, vo, lc) = split_cvc(s);
+
+    // gi + i (+ consonant) → invalid: gi digraph requires a different vowel
+    // qu + u (+ consonant) → invalid: qu digraph requires a different vowel
+    if vo.is_empty() && !lc.is_empty()
+        && ((fc.len() == 2 && fc[0] == 'g' && fc[1] == 'i')
+            || (fc.len() == 2 && fc[0] == 'q' && fc[1] == 'u'))
+    {
+        return false;
+    }
+
+    // k only combines with e, ê, i, y (and their extended sequences: eo, êu, ia,
+    // iê, iêu).  Pattern from x-unikey's isValidCV.
+    if fc.len() == 1 && fc[0] == 'k' && !vo.is_empty() {
+        let first_vowel = vo[0];
+        if !matches!(first_vowel, 'e' | 'ê' | 'i' | 'y') {
+            return false;
+        }
+    }
 
     // Debug: uncomment to trace CVC split
     // eprintln!("is_valid_cvc({s:?}): fc={fc:?} vo={vo:?} lc={lc:?}");

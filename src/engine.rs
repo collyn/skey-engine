@@ -63,11 +63,12 @@ fn last_dstroke_index(ls: &[Letter]) -> Option<usize> {
     ls.iter().rposition(|lt| lt.is_dstroke)
 }
 
-/// Find the last vowel that can be modified by `w`: a→ă, o→ơ, u→ư, e→ê.
+/// Find the last vowel that can be modified by `w`: a→ă, o→ơ, u→ư.
+/// `w` does NOT apply circumflex to `e` — that is done via double-vowel `ee`.
 /// Used by the `w` key handler so that e.g. "toi" + w finds 'o' (not 'i').
 fn last_w_target_index(ls: &[Letter]) -> Option<usize> {
     ls.iter()
-        .rposition(|lt| lt.is_vowel && matches!(lt.c, 'a' | 'o' | 'u' | 'e'))
+        .rposition(|lt| lt.is_vowel && matches!(lt.c, 'a' | 'o' | 'u'))
 }
 
 fn tone_vowel_index(ls: &[Letter], modern: bool) -> Option<usize> {
@@ -232,14 +233,14 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                         }
                         continue;
                     }
-                    'e' => {
-                        ls[vi].variant = if ls[vi].variant == 1 { 0 } else { 1 };
-                        continue;
-                    }
                     _ => {}
                 }
-            } else if short_w && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel) {
-                // short_w mode: standalone w → ư (but not after a literal w)
+            } else if short_w
+                && last_vowel_index(&ls).is_none()
+                && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel)
+            {
+                // short_w mode: standalone w → ư only when no vowel exists
+                // (otherwise w passes through as literal)
                 ls.push(Letter {
                     c: 'u',
                     is_vowel: true,
@@ -496,13 +497,12 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                         }
                         continue;
                     }
-                    'e' => {
-                        ls[vi].variant = if ls[vi].variant == 1 { 0 } else { 1 };
-                        continue;
-                    }
                     _ => {}
                 }
-            } else if short_w && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel) {
+            } else if short_w
+                && last_vowel_index(&ls).is_none()
+                && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel)
+            {
                 ls.push(Letter {
                     c: 'u',
                     is_vowel: true,
@@ -902,7 +902,7 @@ mod tests {
         assert_eq!(tt("aa"), "â");
         assert_eq!(tt("aw"), "ă");
         assert_eq!(tt("ee"), "ê");
-        assert_eq!(tt("ew"), "ê");
+        assert_eq!(tt("ew"), "ew"); // ew no longer → ê (use ee)
         assert_eq!(tt("oo"), "ô");
         assert_eq!(tt("ow"), "ơ");
         assert_eq!(tt("uw"), "ư");
@@ -1086,8 +1086,8 @@ mod tests {
         assert_eq!(tt("oww"), "o"); // ơ+w toggle off → o
         assert_eq!(tt("uw"), "ư"); // u+w → ư
         assert_eq!(tt("uww"), "u"); // ư+w toggle off → u
-        assert_eq!(tt("ew"), "ê"); // e+w → ê
-        assert_eq!(tt("eww"), "e"); // ê+w toggle off → e
+        // e+w no longer → ê — use ee for circumflex
+        assert_eq!(tt("ew"), "ew"); // e+w: w has no target on e, passes through
         assert_eq!(tt("uow"), "ươ"); // u+o+w → ươ
         assert_eq!(tt("uoww"), "uo"); // ươ+w toggle off → uo
     }
@@ -1262,7 +1262,7 @@ fn full_parity() {
         },
         Case {
             input: "ew",
-            expected: "ê",
+            expected: "ew", // ew no longer → ê (use ee)
             method: 1,
         },
         Case {
@@ -1680,10 +1680,12 @@ fn comprehensive_vietnamese() {
         ("eer", "ể", 1),
         ("eex", "ễ", 1),
         ("eej", "ệ", 1),
-        ("ew", "ê", 1),
-        ("ews", "ế", 1),
-        ("ewf", "ề", 1),
-        ("ewr", "ể", 1),
+        // ew no longer → ê (use ee for circumflex)
+        // tone keys still apply: e+w+s → éw (tone on e, w literal)
+        ("ew", "ew", 1),
+        ("ews", "éw", 1),
+        ("ewf", "èw", 1),
+        ("ewr", "ẻw", 1),
         // ô = oo
         ("oo", "ô", 1),
         ("oos", "ố", 1),

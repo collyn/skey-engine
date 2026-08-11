@@ -11,6 +11,7 @@
 pub mod tables;
 pub mod engine;
 pub mod spelling;
+pub mod charset;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
