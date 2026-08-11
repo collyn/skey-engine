@@ -892,20 +892,6 @@ fn encode_nfd(input: &str) -> Vec<u8> {
     out
 }
 
-fn encode_to(input: &str, table: &[u8], map: &HashMap<char, usize>) -> Vec<u8> {
-    let mut out = Vec::with_capacity(input.len());
-    for ch in input.chars() {
-        if let Some(&idx) = map.get(&ch) {
-            out.push(table[idx]);
-        } else {
-            let mut buf = [0u8; 4];
-            let s = ch.encode_utf8(&mut buf);
-            out.extend_from_slice(s.as_bytes());
-        }
-    }
-    out
-}
-
 /// Decode charset bytes to a UTF-8 string.
 pub fn decode(input: &[u8], charset: VietCharset) -> String {
     match charset {
