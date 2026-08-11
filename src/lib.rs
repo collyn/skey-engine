@@ -87,7 +87,11 @@ pub unsafe extern "C" fn skey_engine_set_tone_style(e: *mut SkeyEngine, v: i32) 
     if !e.is_null() { unsafe { (*e).set_modern(v != 0); } }
 }
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn skey_engine_set_free_marking(_e: *mut SkeyEngine, _v: i32) {}
+pub unsafe extern "C" fn skey_engine_set_free_marking(e: *mut SkeyEngine, v: i32) {
+    // Free marking ON → modern style (tone on 2nd vowel for oa/oe/uy)
+    // Free marking OFF → traditional (tone on 1st vowel for oa/oe/uy)
+    if !e.is_null() { unsafe { (*e).set_modern(v != 0); } }
+}
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn skey_engine_set_short_w(e: *mut SkeyEngine, v: i32) {
     if !e.is_null() { unsafe { (*e).set_short_w(v != 0); } }
