@@ -265,6 +265,27 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
         ls.push(Letter::new(ch, upper));
+        // Tone reassignment: when a new vowel is pushed after a gi/qu
+        // digraph vowel that has a tone, move the tone to the new vowel.
+        // e.g. "gis"→"gí" then "a"→"giá" (tone moves from i to a).
+        if ls.len() >= 2 {
+            let last = ls.len() - 1;
+            if ls[last].is_vowel {
+                for i in (0..last).rev() {
+                    if !ls[i].is_vowel { break; }
+                    if ls[i].tone != 0 {
+                        if ls[i].c == 'i' && i > 0 && ls[i - 1].c == 'g' {
+                            ls[last].tone = ls[i].tone;
+                            ls[i].tone = 0;
+                        } else if ls[i].c == 'u' && i > 0 && ls[i - 1].c == 'q' {
+                            ls[last].tone = ls[i].tone;
+                            ls[i].tone = 0;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
     }
     emit(&ls)
 }
@@ -456,6 +477,26 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
         }
 
         ls.push(Letter::new(ch, upper));
+        // Tone reassignment: when a new vowel is pushed after a gi/qu
+        // digraph vowel that has a tone, move the tone to the new vowel.
+        if ls.len() >= 2 {
+            let last = ls.len() - 1;
+            if ls[last].is_vowel {
+                for i in (0..last).rev() {
+                    if !ls[i].is_vowel { break; }
+                    if ls[i].tone != 0 {
+                        if ls[i].c == 'i' && i > 0 && ls[i - 1].c == 'g' {
+                            ls[last].tone = ls[i].tone;
+                            ls[i].tone = 0;
+                        } else if ls[i].c == 'u' && i > 0 && ls[i - 1].c == 'q' {
+                            ls[last].tone = ls[i].tone;
+                            ls[i].tone = 0;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
     }
     emit(&ls)
 }
@@ -805,6 +846,18 @@ mod tests {
         assert_eq!(tt("gif"), "gì");
         assert_eq!(tt("giowf"), "giờ");
         assert_eq!(tt("gioir"), "giỏi");
+    }
+
+    #[test]
+    fn telex_gi_qu_tone_reassign() {
+        // Incremental typing: tone moves from digraph vowel to new vowel
+        assert_eq!(tt("gisa"), "giá");     // gis→gí + a → giá
+        assert_eq!(tt("gifa"), "già");     // gif→gì + a → già
+        assert_eq!(tt("quisa"), "quía");   // qus→qú + i + a → quía
+        assert_eq!(tt("qufa"), "quà");     // quf→qù + a → quà
+        // Multi-vowel after gi: tone moves to last vowel
+        assert_eq!(tt("gias"), "giá");     // already works in one shot
+        assert_eq!(tt("giois"), "giói");   // gio + is → giói
     }
     #[test]
     fn telex_uow_traditional() {
