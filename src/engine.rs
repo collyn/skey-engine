@@ -321,6 +321,25 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                         }
                     }
                 }
+            } else {
+                // Trailing consonant: closed syllable → tone must be on
+                // last vowel. e.g. "tof"→"tò" then "a" then "n"→"toàn".
+                if let Some(end) = last_vowel_index(&ls) {
+                    if end + 1 < ls.len() {
+                        let fv = (0..end).find(|&j| ls[j].is_vowel);
+                        if let Some(fv) = fv {
+                            if fv < end {
+                                for j in (fv..end).rev() {
+                                    if ls[j].tone != 0 {
+                                        ls[end].tone = ls[j].tone;
+                                        ls[j].tone = 0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -559,6 +578,25 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                     ls[j].tone = t;
                                 }
                                 break;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Trailing consonant: closed syllable → tone must be on
+                // last vowel.
+                if let Some(end) = last_vowel_index(&ls) {
+                    if end + 1 < ls.len() {
+                        let fv = (0..end).find(|&j| ls[j].is_vowel);
+                        if let Some(fv) = fv {
+                            if fv < end {
+                                for j in (fv..end).rev() {
+                                    if ls[j].tone != 0 {
+                                        ls[end].tone = ls[j].tone;
+                                        ls[j].tone = 0;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
@@ -926,6 +964,18 @@ mod tests {
         // Multi-vowel after gi: tone moves to last vowel
         assert_eq!(tt("gias"), "giá");     // already works in one shot
         assert_eq!(tt("giois"), "giói");   // gio + is → giói
+    }
+
+    #[test]
+    fn telex_trailing_consonant_reassign() {
+        // Tone between vowels, then consonant closes syllable
+        // → tone moves to last vowel (correct Vietnamese spelling)
+        assert_eq!(tt("tofan"), "toàn");   // tof→tò + a + n → toàn
+        assert_eq!(tt("toafn"), "toàn");   // toa→toa + f→tòa + n→toàn
+        assert_eq!(tt("hoafn"), "hoàn");   // hoaf→hòa + n→hoàn
+        // One-shot: tone after all vowels already works correctly
+        assert_eq!(tt("toanf"), "toàn");
+        assert_eq!(tt("hoanf"), "hoàn");
     }
     #[test]
     fn telex_uow_traditional() {
