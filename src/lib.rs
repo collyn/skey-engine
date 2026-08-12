@@ -74,10 +74,19 @@ impl SkeyEngine {
 /// auto-restore should not revert the engine output even if the result
 /// isn't a complete valid syllable (e.g. abbreviations like "đc").
 pub(crate) fn has_vn_markers(input: &str) -> bool {
-    // Only "dd" is an unambiguous Vietnamese digraph that signals intentional
-    // IME transformation. Other digraphs (aw, ow, aa, ee, oo) also appear in
-    // English words and repeated-key patterns — auto-restore should handle them.
-    input.to_lowercase().contains("dd")
+    // Vietnamese composition markers that signal intentional IME transforms.
+    //   dd → đ                  (d-stroke — always intentional)
+    //   aaa/eee/ooo             (3+ same vowel = circumflex toggle in progress)
+    //
+    // We deliberately do NOT match "aa"/"ee"/"oo" (2 vowels) because those
+    // appear in English words (need, good, book) that should be auto-restored.
+    // A simple double-vowel "aa"→"â" is always a valid single character,
+    // so auto-restore won't touch it anyway.
+    let lower = input.to_lowercase();
+    lower.contains("dd")
+        || lower.contains("aaa")
+        || lower.contains("eee")
+        || lower.contains("ooo")
 }
 
 // ── C FFI ──────────────────────────────────────────────────────────
