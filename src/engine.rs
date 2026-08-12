@@ -87,12 +87,17 @@ fn tone_vowel_index(ls: &[Letter], modern: bool) -> Option<usize> {
     if start > end {
         start = end;
     }
-    for i in (start..=end).rev() {
-        if ls[i].variant != 0 {
-            return Some(i);
+    let count = end - start + 1;
+    // For triphthongs (3+ vowels), tone placement follows position rules —
+    // typically the middle vowel.  Don't let a variant (e.g. ô from oo in
+    // "oeo") steal the tone; the triphthong structure takes priority.
+    if count < 3 {
+        for i in (start..=end).rev() {
+            if ls[i].variant != 0 {
+                return Some(i);
+            }
         }
     }
-    let count = end - start + 1;
     if count == 1 {
         return Some(start);
     }
@@ -111,8 +116,8 @@ fn tone_vowel_index(ls: &[Letter], modern: bool) -> Option<usize> {
     }
     let (c1, c2) = (ls[start].c, ls[end].c);
     if (c1 == 'o' && c2 == 'a') || (c1 == 'o' && c2 == 'e') || (c1 == 'u' && c2 == 'y') {
-        // modern (new style): tone on 2nd vowel (hoà, thuỳ)
-        // traditional:        tone on 1st vowel (hòa, thùy)
+        // Open oa/oe/uy: modern→2nd vowel, traditional→1st vowel
+        // (closed oa/oe/uy always tone on last vowel — handled above)
         return if modern { Some(end) } else { Some(start) };
     }
     Some(start) // default open diphthong: tone on first vowel
@@ -176,6 +181,14 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                 for i in (0..=vi).rev() {
                     if ls[i].is_vowel {
                         if ls[i].c == lc {
+                            // Only apply if same vowel is adjacent or only
+                            // separated by 'y'/'u' (e.g. vay+a→vây, sau+a→sâu).
+                            // Other vowels like 'e' in o+e+o block the circumflex.
+                            if i < vi {
+                                let blocked = ls[i+1..=vi].iter()
+                                    .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                if blocked { break; }
+                            }
                             if ls[i].variant == 0 {
                                 ls[i].variant = 1;
                                 if upper {
@@ -229,7 +242,14 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                             }
                             ls[vi].variant = 0;
                         } else {
-                            ls[vi].variant = 2;
+                            // Horn on u: if there's a preceding u in the same
+                            // vowel cluster (e.g. "uu" + w → "ưu"), apply to
+                            // the FIRST u of the cluster.  Matches Unikey behaviour.
+                            let mut target = vi;
+                            while target > 0 && ls[target - 1].c == 'u' && ls[target - 1].is_vowel {
+                                target -= 1;
+                            }
+                            ls[target].variant = 2;
                         }
                         continue;
                     }
@@ -439,6 +459,14 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                 for i in (0..=vi).rev() {
                     if ls[i].is_vowel {
                         if ls[i].c == lc {
+                            // Only apply if same vowel is adjacent or only
+                            // separated by 'y'/'u' (e.g. vay+a→vây, sau+a→sâu).
+                            // Other vowels like 'e' in o+e+o block the circumflex.
+                            if i < vi {
+                                let blocked = ls[i+1..=vi].iter()
+                                    .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                if blocked { break; }
+                            }
                             if ls[i].variant == 0 {
                                 ls[i].variant = 1;
                                 if upper {
@@ -493,7 +521,11 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                             }
                             ls[vi].variant = 0;
                         } else {
-                            ls[vi].variant = 2;
+                            let mut target = vi;
+                            while target > 0 && ls[target - 1].c == 'u' && ls[target - 1].is_vowel {
+                                target -= 1;
+                            }
+                            ls[target].variant = 2;
                         }
                         continue;
                     }
@@ -1090,6 +1122,9 @@ mod tests {
         assert_eq!(tt("ew"), "ew"); // e+w: w has no target on e, passes through
         assert_eq!(tt("uow"), "ươ"); // u+o+w → ươ
         assert_eq!(tt("uoww"), "uo"); // ươ+w toggle off → uo
+        // uu + w → ưu (horn on first u of cluster, matches Unikey Windows)
+        assert_eq!(tt("uuw"), "ưu");
+        assert_eq!(tt("uuws"), "ứu"); // uuw + acute
     }
 
     // ── w-target tests: w applies to last modifiable vowel ──────────
