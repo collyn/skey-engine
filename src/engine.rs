@@ -15,6 +15,7 @@ pub(crate) struct Letter {
     pub(crate) from_w: bool,
     pub(crate) horn_propagated: bool, // horn set by propagation (not explicit w)
     pub(crate) circ_toggled: bool,    // circumflex was toggled off — don't reapply
+    pub(crate) d_toggled: bool,       // đ was toggled off — don't recreate
 }
 
 impl Letter {
@@ -30,6 +31,7 @@ impl Letter {
             from_w: false,
             horn_propagated: false,
             circ_toggled: false,
+            d_toggled: false,
         }
     }
 }
@@ -218,11 +220,12 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
-        // dd → đ: toggle behavior like w (dd→đ, ddd→dd, dddd→đd).
-        // Search backwards for any unconverted d so "dad" → "đa".
+        // dd → đ: merge once, unmerge once, then one-shot (like aa).
+        // dd→đ, ddd→dd, dddd→ddd (no re-merge after toggle-off).
         if lc == 'd' {
-            if last_dstroke_index(&ls).is_none() {
-                // No đ yet — convert the last plain d to đ.
+            let any_d_toggled = ls.iter().any(|lt| lt.c == 'd' && lt.d_toggled);
+            if !any_d_toggled && last_dstroke_index(&ls).is_none() {
+                // No đ yet and never toggled — convert plain d to đ.
                 if let Some(di) = last_d_index(&ls) {
                     ls[di].is_dstroke = true;
                     if upper {
@@ -230,10 +233,11 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                     }
                     continue;
                 }
-            } else {
-                // đ exists — toggle off, push literal d.
+            } else if last_dstroke_index(&ls).is_some() {
+                // đ exists — toggle off once, mark as toggled.
                 if let Some(di) = last_dstroke_index(&ls) {
                     ls[di].is_dstroke = false;
+                    ls[di].d_toggled = true;
                     // fall through: push literal 'd'
                 }
             }
@@ -491,9 +495,10 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
 
-        // ── Telex dd → đ: toggle like w (dd→đ, ddd→dd) ──
+        // ── Telex dd → đ: merge once, unmerge once, then one-shot ──
         if lc == 'd' {
-            if last_dstroke_index(&ls).is_none() {
+            let any_d_toggled = ls.iter().any(|lt| lt.c == 'd' && lt.d_toggled);
+            if !any_d_toggled && last_dstroke_index(&ls).is_none() {
                 if let Some(di) = last_d_index(&ls) {
                     ls[di].is_dstroke = true;
                     if upper {
@@ -501,9 +506,10 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                     }
                     continue;
                 }
-            } else {
+            } else if last_dstroke_index(&ls).is_some() {
                 if let Some(di) = last_dstroke_index(&ls) {
                     ls[di].is_dstroke = false;
+                    ls[di].d_toggled = true;
                     // fall through: push literal 'd'
                 }
             }
@@ -709,6 +715,7 @@ pub fn convert_viqr(input: &str) -> String {
                     from_w: false,
                     horn_propagated: false,
                     circ_toggled: false,
+                    d_toggled: false,
                 });
                 continue;
             }
@@ -955,16 +962,13 @@ mod tests {
         assert_eq!(tt("dangdf"), "đàng"); // d...d converts first d
         assert_eq!(tt("DAD"), "ĐA");
         assert_eq!(tt("Dad"), "Đa");
-        // Toggle: any d toggles đ on/off (like w: dd→đ, ddd→dd)
+        // Toggle once, then one-shot (like aa): dd→đ, ddd→dd, dddd→ddd
         assert_eq!(tt("dadd"), "dad");
-        // Toggle pattern: dd→đ, ddd→dd, dddd→dđ, ddddd→ddd
-        assert_eq!(tt("ddd"), "dd");
-        assert_eq!(tt("dddd"), "dđ");
-        assert_eq!(tt("ddddd"), "ddd");
-        // ddda: dd→đ, ddd→dd, ddda→dda
-        assert_eq!(tt("ddda"), "dda");
-        // ddddf: dd→đ, ddd→dd, dddd→dđ, ddddf→dđf (tone falls through)
-        assert_eq!(tt("ddddf"), "dđf");
+        assert_eq!(tt("ddd"), "dd");     // toggle off once
+        assert_eq!(tt("dddd"), "ddd");   // no re-merge, plain d's
+        assert_eq!(tt("ddddd"), "dddd"); // plain d's
+        assert_eq!(tt("ddda"), "dda");   // plain d's
+        assert_eq!(tt("ddddf"), "dddf"); // tone falls through on plain d's
     }
     #[test]
     fn telex_marks_traditional() {
@@ -2006,7 +2010,7 @@ fn comprehensive_vietnamese() {
         ("dadd", "dad", 1),
         // Consecutive d's after first đ: all literal
         ("ddd", "dd", 1),
-        ("dddd", "dđ", 1),
+        ("dddd", "ddd", 1),
         // ═══ CONSONANT CLUSTERS ═══
         ("nhas", "nhá", 1),
         ("nghir", "nghỉ", 1),
