@@ -14,6 +14,7 @@ pub(crate) struct Letter {
     pub(crate) upper: bool,
     pub(crate) from_w: bool,
     pub(crate) horn_propagated: bool, // horn set by propagation (not explicit w)
+    pub(crate) circ_toggled: bool,    // circumflex was toggled off — don't reapply
 }
 
 impl Letter {
@@ -28,6 +29,7 @@ impl Letter {
             upper,
             from_w: false,
             horn_propagated: false,
+            circ_toggled: false,
         }
     }
 }
@@ -240,36 +242,43 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
         // the circumflex, searching backwards through the vowel cluster
         // (skipping y/u, so "vay"+a→"vây", "sau"+a→"sâu").
         if matches!(lc, 'a' | 'e' | 'o') {
-            // Double-vowel circumflex: merge-based toggle (like dd, w).
-            // aa→â (merge), aaa→aa (unmerge + push), aaaa→aâ (merge again).
+            // Double-vowel circumflex: aa→â (merge), aaa→aa (unmerge once),
+            // then aaaa→aaa (no re-merge — circ_toggled blocks reapply).
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
-                for i in (0..=vi).rev() {
-                    if ls[i].is_vowel {
-                        if ls[i].c == lc {
-                            if i < vi {
-                                let blocked = ls[i + 1..=vi]
-                                    .iter()
-                                    .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
-                                if blocked {
+                // If any matching vowel was already toggled off, don't reapply.
+                let any_circ_toggled = ls[..=vi]
+                    .iter()
+                    .any(|lt| lt.is_vowel && lt.c == lc && lt.circ_toggled);
+                if !any_circ_toggled {
+                    for i in (0..=vi).rev() {
+                        if ls[i].is_vowel {
+                            if ls[i].c == lc {
+                                if i < vi {
+                                    let blocked = ls[i + 1..=vi]
+                                        .iter()
+                                        .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                    if blocked {
+                                        break;
+                                    }
+                                }
+                                if ls[i].variant == 0 {
+                                    ls[i].variant = 1;
+                                    if upper {
+                                        ls[i].upper = true;
+                                    }
+                                    consumed = true;
                                     break;
                                 }
+                                if ls[i].variant == 1 {
+                                    ls[i].variant = 0;
+                                    ls[i].circ_toggled = true;
+                                    break;
+                                } // unmerge once
                             }
-                            if ls[i].variant == 0 {
-                                ls[i].variant = 1;
-                                if upper {
-                                    ls[i].upper = true;
-                                }
-                                consumed = true;
-                                break;
-                            }
-                            if ls[i].variant == 1 {
-                                ls[i].variant = 0;
-                                break;
-                            } // toggle off, push copy
+                        } else {
+                            break;
                         }
-                    } else {
-                        break;
                     }
                 }
             }
@@ -502,36 +511,43 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
 
         // ── Circumflex toggle: a→â (in-place, like w) ──
         if matches!(lc, 'a' | 'e' | 'o') {
-            // Double-vowel circumflex: merge-based toggle (like dd, w).
-            // aa→â (merge), aaa→aa (unmerge + push), aaaa→aâ (merge again).
+            // Double-vowel circumflex: aa→â (merge), aaa→aa (unmerge once),
+            // then aaaa→aaa (no re-merge — circ_toggled blocks reapply).
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
-                for i in (0..=vi).rev() {
-                    if ls[i].is_vowel {
-                        if ls[i].c == lc {
-                            if i < vi {
-                                let blocked = ls[i + 1..=vi]
-                                    .iter()
-                                    .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
-                                if blocked {
+                // If any matching vowel was already toggled off, don't reapply.
+                let any_circ_toggled = ls[..=vi]
+                    .iter()
+                    .any(|lt| lt.is_vowel && lt.c == lc && lt.circ_toggled);
+                if !any_circ_toggled {
+                    for i in (0..=vi).rev() {
+                        if ls[i].is_vowel {
+                            if ls[i].c == lc {
+                                if i < vi {
+                                    let blocked = ls[i + 1..=vi]
+                                        .iter()
+                                        .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                    if blocked {
+                                        break;
+                                    }
+                                }
+                                if ls[i].variant == 0 {
+                                    ls[i].variant = 1;
+                                    if upper {
+                                        ls[i].upper = true;
+                                    }
+                                    consumed = true;
                                     break;
                                 }
+                                if ls[i].variant == 1 {
+                                    ls[i].variant = 0;
+                                    ls[i].circ_toggled = true;
+                                    break;
+                                } // unmerge once
                             }
-                            if ls[i].variant == 0 {
-                                ls[i].variant = 1;
-                                if upper {
-                                    ls[i].upper = true;
-                                }
-                                consumed = true;
-                                break;
-                            }
-                            if ls[i].variant == 1 {
-                                ls[i].variant = 0;
-                                break;
-                            } // toggle off, push copy
+                        } else {
+                            break;
                         }
-                    } else {
-                        break;
                     }
                 }
             }
@@ -692,6 +708,7 @@ pub fn convert_viqr(input: &str) -> String {
                     upper: false,
                     from_w: false,
                     horn_propagated: false,
+                    circ_toggled: false,
                 });
                 continue;
             }
@@ -1085,16 +1102,18 @@ mod tests {
         assert_eq!(tv("sao1f"), "sào"); // VNI acute + Telex grave
     }
 
-    // ── Double-vowel toggle (aa→â, aaa→aa, aaaa→aâ) ─────────────────
+    // ── Double-vowel: merge once, unmerge once, then one-shot ───────
     #[test]
     fn telex_double_vowel_toggle() {
         assert_eq!(tt("aa"), "â");
-        assert_eq!(tt("aaa"), "aa");    // unmerge + push copy
-        assert_eq!(tt("aaaa"), "aâ");   // merge new pair
+        assert_eq!(tt("aaa"), "aa");    // unmerge once
+        assert_eq!(tt("aaaa"), "aaa");  // no re-merge, plain a's after
         assert_eq!(tt("ee"), "ê");
         assert_eq!(tt("eee"), "ee");
+        assert_eq!(tt("eeee"), "eee");  // no re-merge
         assert_eq!(tt("oo"), "ô");
         assert_eq!(tt("ooo"), "oo");
+        assert_eq!(tt("oooo"), "ooo");
         assert_eq!(tt("roo"), "rô");
         assert_eq!(tt("rooot"), "root"); // oo→ô, ooo→oo, t
     }

@@ -304,6 +304,7 @@ impl Letter {
             upper,
             from_w: true,
             horn_propagated: false,
+            circ_toggled: false,
         }
     }
 }
