@@ -226,11 +226,12 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                 match ls[vi].c {
                     'a' => {
                         if ls[vi].variant == 2 {
+                            // Toggle breve OFF and let w fall through as literal
+                            // (ă + w → aw, not ă + w → a then a + w → aw)
                             ls[vi].variant = 0;
                             ls[vi].from_w = true;
-                            continue;
                         } else if ls[vi].from_w && ls[vi].variant == 0 {
-                            // Already toggled off — let w fall through as literal
+                            // Already toggled off — w falls through as literal
                         } else {
                             ls[vi].variant = 2;
                             ls[vi].from_w = false;
@@ -239,15 +240,15 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                     }
                     'o' => {
                         if ls[vi].variant == 2 {
+                            // Toggle horn OFF + let w fall through (ơ + w → ow)
                             ls[vi].variant = 0;
                             ls[vi].from_w = true;
                             if vi > 0 && ls[vi - 1].c == 'u' && ls[vi - 1].variant == 2 {
                                 ls[vi - 1].variant = 0;
                                 ls[vi - 1].from_w = true;
                             }
-                            continue;
                         } else if ls[vi].from_w && ls[vi].variant == 0 {
-                            // Already toggled off — let w fall through
+                            // Already toggled — w falls through
                         } else if ls[vi].variant == 0 {
                             ls[vi].variant = 2;
                             ls[vi].from_w = false;
@@ -269,12 +270,12 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                                 ls[first].is_vowel = false;
                                 ls[first].from_w = false;
                             } else {
+                                // Toggle horn OFF + let w fall through (ư + w → uw)
                                 ls[first].variant = 0;
                                 ls[first].from_w = true;
                             }
-                            continue;
                         } else if ls[first].from_w && ls[first].variant == 0 {
-                            // Already toggled off — let w fall through
+                            // Already toggled — w falls through
                         } else {
                             ls[first].variant = 2;
                             ls[first].from_w = false;
@@ -526,7 +527,6 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                         if ls[vi].variant == 2 {
                             ls[vi].variant = 0;
                             ls[vi].from_w = true;
-                            continue;
                         } else if ls[vi].from_w && ls[vi].variant == 0 {
                         } else {
                             ls[vi].variant = 2;
@@ -542,7 +542,6 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                 ls[vi - 1].variant = 0;
                                 ls[vi - 1].from_w = true;
                             }
-                            continue;
                         } else if ls[vi].from_w && ls[vi].variant == 0 {
                         } else if ls[vi].variant == 0 {
                             ls[vi].variant = 2;
@@ -568,7 +567,6 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                 ls[first].variant = 0;
                                 ls[first].from_w = true;
                             }
-                            continue;
                         } else if ls[first].from_w && ls[first].variant == 0 {
                         } else {
                             ls[first].variant = 2;
@@ -1149,28 +1147,30 @@ mod tests {
     // ── w-toggle: pressing w again undoes the mark ──────────────────
     #[test]
     fn telex_w_toggle() {
-        // Standalone w → ư, ww → w, www → ww, wwww → www
+        // Standalone w → ư, ww → ư→w + literal w → ww
+        // Toggle-off now also produces a literal w (ow + w → ow, not o)
         assert_eq!(tt("w"), "ư");
-        assert_eq!(tt("ww"), "w");
-        assert_eq!(tt("www"), "ww");
-        assert_eq!(tt("wwww"), "www");
-        // wws: toggle off to w, then s has no vowel → "ws"
-        assert_eq!(tt("wws"), "ws");
+        assert_eq!(tt("ww"), "ww");    // ư→w toggle + literal w
+        assert_eq!(tt("www"), "www");  // literal w's
+        assert_eq!(tt("wwww"), "wwww");
+        // wws: toggle off → w, literal w, then s has no vowel → "wws"
+        assert_eq!(tt("wws"), "wws");
     }
     #[test]
     fn telex_w_toggle_regular() {
-        assert_eq!(tt("aw"), "ă"); // a+w → ă
-        assert_eq!(tt("aww"), "a"); // ă+w toggle off → a
-        assert_eq!(tt("ow"), "ơ"); // o+w → ơ
-        assert_eq!(tt("oww"), "o"); // ơ+w toggle off → o
-        assert_eq!(tt("uw"), "ư"); // u+w → ư
-        assert_eq!(tt("uww"), "u"); // ư+w toggle off → u
+        assert_eq!(tt("aw"), "ă");   // a+w → ă
+        assert_eq!(tt("aww"), "aw"); // ă+w → a + literal w → aw
+        assert_eq!(tt("ow"), "ơ");   // o+w → ơ
+        assert_eq!(tt("oww"), "ow"); // ơ+w → o + literal w → ow
+        assert_eq!(tt("uw"), "ư");   // u+w → ư
+        assert_eq!(tt("uww"), "uw"); // ư+w → u + literal w → uw
         // e+w no longer → ê — use ee for circumflex
-        assert_eq!(tt("ew"), "ew"); // e+w: w has no target on e, passes through
-        assert_eq!(tt("uow"), "ươ"); // u+o+w → ươ
-        assert_eq!(tt("uoww"), "uo"); // ươ+w toggle off → uo
+        assert_eq!(tt("ew"), "ew");
+        assert_eq!(tt("uow"), "ươ");   // u+o+w → ươ
+        assert_eq!(tt("uoww"), "uow"); // ươ+w → uo + literal w → uow
         // uu + w → ưu (horn on first u of cluster, matches Unikey Windows)
         assert_eq!(tt("uuw"), "ưu");
+        assert_eq!(tt("uuww"), "uuw"); // 2nd w: toggle ưu→uu + literal w → uuw
         assert_eq!(tt("uuws"), "ứu"); // uuw + acute
     }
 
