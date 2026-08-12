@@ -241,7 +241,7 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
         // (skipping y/u, so "vay"+a→"vây", "sau"+a→"sâu").
         if matches!(lc, 'a' | 'e' | 'o') {
             // Double-vowel circumflex: merge-based toggle (like dd, w).
-            // aa→â, aaa→aa, aaaa→aâ (toggle off/on by merging/unmerging).
+            // aa→â (merge), aaa→aa (unmerge + push), aaaa→aâ (merge again).
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
                 for i in (0..=vi).rev() {
@@ -266,7 +266,7 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                             if ls[i].variant == 1 {
                                 ls[i].variant = 0;
                                 break;
-                            } // toggle off, then push copy
+                            } // toggle off, push copy
                         }
                     } else {
                         break;
@@ -503,7 +503,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
         // ── Circumflex toggle: a→â (in-place, like w) ──
         if matches!(lc, 'a' | 'e' | 'o') {
             // Double-vowel circumflex: merge-based toggle (like dd, w).
-            // aa→â, aaa→aa, aaaa→aâ (toggle off/on by merging/unmerging).
+            // aa→â (merge), aaa→aa (unmerge + push), aaaa→aâ (merge again).
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
                 for i in (0..=vi).rev() {
@@ -528,7 +528,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                             if ls[i].variant == 1 {
                                 ls[i].variant = 0;
                                 break;
-                            } // toggle off, then push copy
+                            } // toggle off, push copy
                         }
                     } else {
                         break;
@@ -1085,12 +1085,12 @@ mod tests {
         assert_eq!(tv("sao1f"), "sào"); // VNI acute + Telex grave
     }
 
-    // ── Double-vowel toggle: aa→â, aaa→aa, aaaa→aâ (like dd, w) ────
+    // ── Double-vowel toggle (aa→â, aaa→aa, aaaa→aâ) ─────────────────
     #[test]
     fn telex_double_vowel_toggle() {
         assert_eq!(tt("aa"), "â");
-        assert_eq!(tt("aaa"), "aa");    // toggle off + push copy
-        assert_eq!(tt("aaaa"), "aâ");   // toggle on new pair
+        assert_eq!(tt("aaa"), "aa");    // unmerge + push copy
+        assert_eq!(tt("aaaa"), "aâ");   // merge new pair
         assert_eq!(tt("ee"), "ê");
         assert_eq!(tt("eee"), "ee");
         assert_eq!(tt("oo"), "ô");
