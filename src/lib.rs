@@ -74,11 +74,20 @@ impl SkeyEngine {
 /// auto-restore should not revert the engine output even if the result
 /// isn't a complete valid syllable (e.g. abbreviations like "đc").
 pub(crate) fn has_vn_markers(input: &str) -> bool {
-    // Only check for the unambiguous Vietnamese digraph "dd" → "đ".
-    // Other markers (aw, ow, etc.) can appear in English words and
-    // should still be auto-restored when the composed output is invalid.
+    // Check for Vietnamese composition digraphs in the raw input.
+    // If present, the engine intentionally transformed them — don't restore.
+    // Covers all Telex digraph patterns:
+    //   dd → đ    (d-stroke)
+    //   aw → ă    (breve)      ow → ơ    (horn)      uw → ư    (horn)
+    //   aa → â    (circumflex) ee → ê    (circumflex) oo → ô    (circumflex)
     let lower = input.to_lowercase();
     lower.contains("dd")
+        || lower.contains("aw")
+        || lower.contains("ow")
+        || lower.contains("uw")
+        || lower.contains("aa")
+        || lower.contains("ee")
+        || lower.contains("oo")
 }
 
 // ── C FFI ──────────────────────────────────────────────────────────
