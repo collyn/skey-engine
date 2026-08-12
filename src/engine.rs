@@ -243,23 +243,24 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                         continue;
                     }
                     'u' => {
-                        if ls[vi].variant == 2 {
-                            if ls[vi].from_w {
+                        // Find the first u in a consecutive u-cluster
+                        let mut first = vi;
+                        while first > 0 && ls[first - 1].c == 'u' && ls[first - 1].is_vowel {
+                            first -= 1;
+                        }
+                        if ls[first].variant == 2 {
+                            // Toggle horn OFF: clear variant on first u of cluster
+                            // (matches "uu" + "w" toggles back to "uu")
+                            if ls[first].from_w {
                                 // standalone w toggle-off: ư → w
-                                ls[vi].c = 'w';
-                                ls[vi].is_vowel = false;
-                                ls[vi].from_w = false;
+                                ls[first].c = 'w';
+                                ls[first].is_vowel = false;
+                                ls[first].from_w = false;
                             }
-                            ls[vi].variant = 0;
+                            ls[first].variant = 0;
                         } else {
-                            // Horn on u: if there's a preceding u in the same
-                            // vowel cluster (e.g. "uu" + w → "ưu"), apply to
-                            // the FIRST u of the cluster.  Matches Unikey behaviour.
-                            let mut target = vi;
-                            while target > 0 && ls[target - 1].c == 'u' && ls[target - 1].is_vowel {
-                                target -= 1;
-                            }
-                            ls[target].variant = 2;
+                            // Horn ON: apply to first u of cluster (e.g. uu+w→ưu)
+                            ls[first].variant = 2;
                         }
                         continue;
                     }
@@ -523,19 +524,19 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                         continue;
                     }
                     'u' => {
-                        if ls[vi].variant == 2 {
-                            if ls[vi].from_w {
-                                ls[vi].c = 'w';
-                                ls[vi].is_vowel = false;
-                                ls[vi].from_w = false;
+                        let mut first = vi;
+                        while first > 0 && ls[first - 1].c == 'u' && ls[first - 1].is_vowel {
+                            first -= 1;
+                        }
+                        if ls[first].variant == 2 {
+                            if ls[first].from_w {
+                                ls[first].c = 'w';
+                                ls[first].is_vowel = false;
+                                ls[first].from_w = false;
                             }
-                            ls[vi].variant = 0;
+                            ls[first].variant = 0;
                         } else {
-                            let mut target = vi;
-                            while target > 0 && ls[target - 1].c == 'u' && ls[target - 1].is_vowel {
-                                target -= 1;
-                            }
-                            ls[target].variant = 2;
+                            ls[first].variant = 2;
                         }
                         continue;
                     }
