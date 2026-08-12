@@ -56,13 +56,12 @@ fn vowel_cluster(ls: &[Letter]) -> Option<(usize, usize)> {
     while start > 0 && ls[start - 1].is_vowel {
         start -= 1;
     }
-    // Skip gi/qu digraph vowels
-    if start < end {
-        if ls[start].c == 'u' && start > 0 && ls[start - 1].c == 'q' {
-            start += 1;
-        } else if ls[start].c == 'i' && start > 0 && ls[start - 1].c == 'g' {
-            start += 1;
-        }
+    // Skip gi/qu digraph vowels — they're consonants, not vowels.
+    // Handle both single-vowel (start==end) and multi-vowel (start<end).
+    if ls[start].c == 'u' && start > 0 && ls[start - 1].c == 'q' {
+        start += 1;
+    } else if ls[start].c == 'i' && start > 0 && ls[start - 1].c == 'g' {
+        start += 1;
     }
     if start > end {
         return None;
@@ -266,10 +265,25 @@ fn apply_single_hook(ls: &mut Vec<Letter>, vi: usize) -> HookResult {
 /// Phase 2: insert standalone ư when hook is not applicable (or short_w ư).
 /// Returns true if a character was inserted (w consumed).
 pub(crate) fn try_insert_horn(ls: &mut Vec<Letter>, short_w: bool, upper: bool) -> bool {
-    // Only insert standalone ư when no vowel exists and short_w is enabled,
-    // and the last char isn't already a literal w.
+    // Only insert standalone ư when no "real" vowel exists and short_w is enabled.
+    // Skip vowels that are part of gi/qu digraphs — they're consonants, not vowels.
+    let has_real_vowel = ls.iter().enumerate().any(|(idx, lt)| {
+        if !lt.is_vowel {
+            return false;
+        }
+        // 'i' after 'g' → gi digraph (consonant, not vowel)
+        if lt.c == 'i' && idx > 0 && ls[idx - 1].c == 'g' && !ls[idx - 1].is_vowel {
+            return false;
+        }
+        // 'u' after 'q' → qu digraph (consonant, not vowel)
+        if lt.c == 'u' && idx > 0 && ls[idx - 1].c == 'q' && !ls[idx - 1].is_vowel {
+            return false;
+        }
+        true
+    });
+
     if short_w
-        && !ls.iter().any(|lt| lt.is_vowel)
+        && !has_real_vowel
         && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel)
     {
         ls.push(Letter::new_standalone_u(upper));
