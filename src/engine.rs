@@ -65,8 +65,18 @@ fn last_dstroke_index(ls: &[Letter]) -> Option<usize> {
 
 /// Find the last vowel that can be modified by `w`: a→ă, o→ơ, u→ư.
 /// `w` does NOT apply circumflex to `e` — that is done via double-vowel `ee`.
-/// Used by the `w` key handler so that e.g. "toi" + w finds 'o' (not 'i').
+///
+/// Special rule (matches x-unikey VSeqList): in a "u"+"a" diphthong, horn
+/// goes on `u` (→ ưa), not breve on `a` (→ uă).  For all other combinations
+/// the last matching vowel (a/o/u) wins.  Used by the `w` key handler so
+/// that e.g. "toi" + w finds 'o' (not 'i').
 fn last_w_target_index(ls: &[Letter]) -> Option<usize> {
+    // u+a → horn on u (ưa), matching x-unikey withHook for vs_ua
+    let has_u = ls.iter().any(|lt| lt.is_vowel && lt.c == 'u');
+    let has_a = ls.iter().any(|lt| lt.is_vowel && lt.c == 'a');
+    if has_u && has_a {
+        return ls.iter().rposition(|lt| lt.is_vowel && lt.c == 'u');
+    }
     ls.iter()
         .rposition(|lt| lt.is_vowel && matches!(lt.c, 'a' | 'o' | 'u'))
 }
