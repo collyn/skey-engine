@@ -72,7 +72,7 @@ impl SkeyEngine {
 /// that signal intentional IME transformation. When these are present,
 /// auto-restore should not revert the engine output even if the result
 /// isn't a complete valid syllable (e.g. abbreviations like "đc").
-fn has_vn_markers(input: &str) -> bool {
+pub(crate) fn has_vn_markers(input: &str) -> bool {
     let lower = input.to_lowercase();
     // dd → đ (d-stroke digraph)
     lower.contains("dd")

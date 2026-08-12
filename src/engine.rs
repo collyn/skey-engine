@@ -160,9 +160,16 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
 
 /// Telex conversion with auto-restore: if the composed output is not valid
 /// Vietnamese and differs from the raw input, return the raw input instead.
+/// Skips auto-restore when the input has Vietnamese composition markers
+/// (dd, vowel+w, double vowels) — those signal intentional IME transforms.
 pub fn convert_telex_auto_restore(input: &str, modern: bool, short_w: bool) -> String {
     let composed = convert_telex_impl(input, modern, short_w);
-    if composed != input && !crate::spelling::is_valid_cvc(&composed) {
+    let all_ascii = composed.chars().all(|c| c.is_ascii());
+    if composed != input
+        && !all_ascii
+        && !crate::spelling::is_valid_cvc(&composed)
+        && !crate::has_vn_markers(input)
+    {
         input.to_string()
     } else {
         composed
