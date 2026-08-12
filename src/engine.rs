@@ -122,6 +122,52 @@ fn tone_vowel_index(ls: &[Letter], modern: bool) -> Option<usize> {
     Some(start) // default open diphthong: tone on first vowel
 }
 
+/// After a hook change (w key), recalculate the correct tone position and
+/// move the tone if it's on the wrong vowel. Ported from fcitx5-unikey's
+/// tone re-positioning in processHook / processHookWithUO.
+fn reposition_tone_after_hook(ls: &mut [Letter], modern: bool) {
+    let end = match last_vowel_index(ls) {
+        Some(e) => e,
+        None => return,
+    };
+    let mut start = end;
+    while start > 0 && ls[start - 1].is_vowel {
+        start -= 1;
+    }
+    // Skip gi/qu digraph vowels
+    if start < end {
+        if ls[start].c == 'u' && start > 0 && ls[start - 1].c == 'q' {
+            start += 1;
+        } else if ls[start].c == 'i' && start > 0 && ls[start - 1].c == 'g' {
+            start += 1;
+        }
+    }
+    if start > end {
+        return;
+    }
+
+    // Find which vowel in the cluster currently has tone
+    let cur_tone_idx = (start..=end).find(|&i| ls[i].tone != 0);
+    let tone_val = match cur_tone_idx {
+        Some(i) => ls[i].tone,
+        None => return, // no tone → nothing to reposition
+    };
+
+    // Find where tone SHOULD be after the hook change
+    let new_tone_idx = match tone_vowel_index(ls, modern) {
+        Some(i) => i,
+        None => return,
+    };
+
+    // Move tone if position changed
+    if Some(new_tone_idx) != cur_tone_idx {
+        if let Some(old) = cur_tone_idx {
+            ls[old].tone = 0;
+        }
+        ls[new_tone_idx].tone = tone_val;
+    }
+}
+
 fn telex_tone(c: char) -> Option<u8> {
     match c.to_ascii_lowercase() {
         's' => Some(2),
@@ -236,10 +282,17 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
             // Two-phase w handling (from fcitx5-unikey):
             // Phase 1: try to hook/breve the current vowel cluster
             // Phase 2: if not applicable, insert standalone ư (short_w)
-            match crate::vseq::try_apply_hook(&mut ls) {
-                crate::vseq::HookResult::Applied => continue,
+            let hook_result = crate::vseq::try_apply_hook(&mut ls);
+            match hook_result {
+                crate::vseq::HookResult::Applied => {
+                    // Hook changed vowel structure — tone may need repositioning
+                    reposition_tone_after_hook(&mut ls, modern);
+                    continue;
+                }
                 crate::vseq::HookResult::ToggledOff => {
-                    // w falls through as literal below (pushed after match)
+                    // Hook removed — tone may need repositioning
+                    reposition_tone_after_hook(&mut ls, modern);
+                    // w falls through as literal below
                 }
                 crate::vseq::HookResult::NotApplicable => {
                     if crate::vseq::try_insert_horn(&mut ls, short_w, upper) {
@@ -493,9 +546,14 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
 
         // ── Telex w (breve/horn) ──
         if lc == 'w' {
-            match crate::vseq::try_apply_hook(&mut ls) {
-                crate::vseq::HookResult::Applied => continue,
+            let hook_result = crate::vseq::try_apply_hook(&mut ls);
+            match hook_result {
+                crate::vseq::HookResult::Applied => {
+                    reposition_tone_after_hook(&mut ls, modern);
+                    continue;
+                }
                 crate::vseq::HookResult::ToggledOff => {
+                    reposition_tone_after_hook(&mut ls, modern);
                     // w falls through as literal
                 }
                 crate::vseq::HookResult::NotApplicable => {
