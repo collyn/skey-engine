@@ -1,8 +1,4 @@
 //! Vietnamese CVC (Consonant-Vowel-Consonant) spelling validation.
-//!
-//! Adapted from bamboo-core 0.3.13 spelling.rs — verified correct via
-//! unit tests.  The tables are linguistic data (which consonants can
-//! precede which vowels, etc.) and are not copyrightable.
 
 // Static token: (chars, length)
 type Token = ([char; 4], u8);
@@ -134,19 +130,21 @@ const CV_ALLOWED_MASKS: [u16; 5] = [
 ];
 
 const VC_ALLOWED_MASKS: [u16; 8] = [
-    (1 << 0) | (1 << 1) | (1 << 2),  // ê,i,ua,uê,uy,y + {ch,nh, c,ng, m,n,p,t}
-    (1 << 0) | (1 << 1) | (1 << 2),  // a,iê,oa,ue,uyê,yê + {ch,nh, c,ng, m,n,p,t}
-    (1 << 0) | (1 << 1) | (1 << 2),  // â,ă,e,o,oo,ô,ơ,oe,u,ư,uâ,uô,ươ + {ch,nh, c,ng, m,n,p,t}
-    (1 << 1) | (1 << 2),             // oă + {c,ng, m,n,p,t}
-    0,                                // uơ — no suffix
-    0,                                // diphthongs/triphthongs — no suffix
-    1 << 3,                           // ă + {k}
-    1 << 4,                           // i + {c}
+    (1 << 0) | (1 << 1) | (1 << 2), // ê,i,ua,uê,uy,y + {ch,nh, c,ng, m,n,p,t}
+    (1 << 0) | (1 << 1) | (1 << 2), // a,iê,oa,ue,uyê,yê + {ch,nh, c,ng, m,n,p,t}
+    (1 << 0) | (1 << 1) | (1 << 2), // â,ă,e,o,oo,ô,ơ,oe,u,ư,uâ,uô,ươ + {ch,nh, c,ng, m,n,p,t}
+    (1 << 1) | (1 << 2),            // oă + {c,ng, m,n,p,t}
+    0,                              // uơ — no suffix
+    0,                              // diphthongs/triphthongs — no suffix
+    1 << 3,                         // ă + {k}
+    1 << 4,                         // i + {c}
 ];
 
 // ── Utility ────────────────────────────────────────────────────────
 
-pub fn lower(c: char) -> char { c.to_lowercase().next().unwrap_or(c) }
+pub fn lower(c: char) -> char {
+    c.to_lowercase().next().unwrap_or(c)
+}
 
 /// Returns the toneless base vowel for a character.
 /// e.g. 'ấ' → 'â', 'ạ' → 'a', 'ê' → 'ê'
@@ -172,11 +170,21 @@ pub fn toneless_base(c: char) -> char {
 /// Returns the tone number (0=none, 1=grave, 2=acute, 3=hook, 4=tilde, 5=dot)
 pub fn tone_of(c: char) -> u8 {
     match lower(c) {
-        'à' | 'ằ' | 'ầ' | 'è' | 'ề' | 'ì' | 'ò' | 'ồ' | 'ờ' | 'ù' | 'ừ' | 'ỳ' => 1,
-        'á' | 'ắ' | 'ấ' | 'é' | 'ế' | 'í' | 'ó' | 'ố' | 'ớ' | 'ú' | 'ứ' | 'ý' => 2,
-        'ả' | 'ẳ' | 'ẩ' | 'ẻ' | 'ể' | 'ỉ' | 'ỏ' | 'ổ' | 'ở' | 'ủ' | 'ử' | 'ỷ' => 3,
-        'ã' | 'ẵ' | 'ẫ' | 'ẽ' | 'ễ' | 'ĩ' | 'õ' | 'ỗ' | 'ỡ' | 'ũ' | 'ữ' | 'ỹ' => 4,
-        'ạ' | 'ặ' | 'ậ' | 'ẹ' | 'ệ' | 'ị' | 'ọ' | 'ộ' | 'ợ' | 'ụ' | 'ự' | 'ỵ' => 5,
+        'à' | 'ằ' | 'ầ' | 'è' | 'ề' | 'ì' | 'ò' | 'ồ' | 'ờ' | 'ù' | 'ừ' | 'ỳ' => {
+            1
+        }
+        'á' | 'ắ' | 'ấ' | 'é' | 'ế' | 'í' | 'ó' | 'ố' | 'ớ' | 'ú' | 'ứ' | 'ý' => {
+            2
+        }
+        'ả' | 'ẳ' | 'ẩ' | 'ẻ' | 'ể' | 'ỉ' | 'ỏ' | 'ổ' | 'ở' | 'ủ' | 'ử' | 'ỷ' => {
+            3
+        }
+        'ã' | 'ẵ' | 'ẫ' | 'ẽ' | 'ễ' | 'ĩ' | 'õ' | 'ỗ' | 'ỡ' | 'ũ' | 'ữ' | 'ỹ' => {
+            4
+        }
+        'ạ' | 'ặ' | 'ậ' | 'ẹ' | 'ệ' | 'ị' | 'ọ' | 'ộ' | 'ợ' | 'ụ' | 'ự' | 'ỵ' => {
+            5
+        }
         _ => 0,
     }
 }
@@ -202,7 +210,11 @@ pub fn apply_tone(c: char, t: u8) -> char {
         if base == b {
             let ti = (t as usize).min(5);
             let ch = tones[ti];
-            return if c.is_uppercase() { ch.to_uppercase().next().unwrap_or(ch) } else { ch };
+            return if c.is_uppercase() {
+                ch.to_uppercase().next().unwrap_or(ch)
+            } else {
+                ch
+            };
         }
     }
     c
@@ -212,32 +224,104 @@ pub fn apply_tone(c: char, t: u8) -> char {
 pub fn apply_mark(c: char, m: u8) -> char {
     let base = toneless_base(lower(c));
     let result = match (base, m) {
-        ('a', 1) => 'â', ('a', 2) => 'ă',
+        ('a', 1) => 'â',
+        ('a', 2) => 'ă',
         ('e', 1) => 'ê',
-        ('o', 1) => 'ô', ('o', 3) => 'ơ',
-        ('u', 3) => 'ư', ('u', 1) => 'ư', // uw→ư handled by pair transform
+        ('o', 1) => 'ô',
+        ('o', 3) => 'ơ',
+        ('u', 3) => 'ư',
+        ('u', 1) => 'ư', // uw→ư handled by pair transform
         ('d', 4) => 'đ',
         _ => return c,
     };
     let tone = tone_of(c);
-    let result = if tone > 0 { apply_tone(result, tone) } else { result };
-    if c.is_uppercase() { result.to_uppercase().next().unwrap_or(result) } else { result }
+    let result = if tone > 0 {
+        apply_tone(result, tone)
+    } else {
+        result
+    };
+    if c.is_uppercase() {
+        result.to_uppercase().next().unwrap_or(result)
+    } else {
+        result
+    }
 }
 
 pub fn is_vowel(c: char) -> bool {
-    matches!(lower(c),
-        'a' | 'à' | 'á' | 'ả' | 'ã' | 'ạ'
-        | 'ă' | 'ằ' | 'ắ' | 'ẳ' | 'ẵ' | 'ặ'
-        | 'â' | 'ầ' | 'ấ' | 'ẩ' | 'ẫ' | 'ậ'
-        | 'e' | 'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ'
-        | 'ê' | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ'
-        | 'i' | 'ì' | 'í' | 'ỉ' | 'ĩ' | 'ị'
-        | 'o' | 'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ'
-        | 'ô' | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ'
-        | 'ơ' | 'ờ' | 'ớ' | 'ở' | 'ỡ' | 'ợ'
-        | 'u' | 'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ'
-        | 'ư' | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự'
-        | 'y' | 'ỳ' | 'ý' | 'ỷ' | 'ỹ' | 'ỵ')
+    matches!(
+        lower(c),
+        'a' | 'à'
+            | 'á'
+            | 'ả'
+            | 'ã'
+            | 'ạ'
+            | 'ă'
+            | 'ằ'
+            | 'ắ'
+            | 'ẳ'
+            | 'ẵ'
+            | 'ặ'
+            | 'â'
+            | 'ầ'
+            | 'ấ'
+            | 'ẩ'
+            | 'ẫ'
+            | 'ậ'
+            | 'e'
+            | 'è'
+            | 'é'
+            | 'ẻ'
+            | 'ẽ'
+            | 'ẹ'
+            | 'ê'
+            | 'ề'
+            | 'ế'
+            | 'ể'
+            | 'ễ'
+            | 'ệ'
+            | 'i'
+            | 'ì'
+            | 'í'
+            | 'ỉ'
+            | 'ĩ'
+            | 'ị'
+            | 'o'
+            | 'ò'
+            | 'ó'
+            | 'ỏ'
+            | 'õ'
+            | 'ọ'
+            | 'ô'
+            | 'ồ'
+            | 'ố'
+            | 'ổ'
+            | 'ỗ'
+            | 'ộ'
+            | 'ơ'
+            | 'ờ'
+            | 'ớ'
+            | 'ở'
+            | 'ỡ'
+            | 'ợ'
+            | 'u'
+            | 'ù'
+            | 'ú'
+            | 'ủ'
+            | 'ũ'
+            | 'ụ'
+            | 'ư'
+            | 'ừ'
+            | 'ứ'
+            | 'ử'
+            | 'ữ'
+            | 'ự'
+            | 'y'
+            | 'ỳ'
+            | 'ý'
+            | 'ỷ'
+            | 'ỹ'
+            | 'ỵ'
+    )
 }
 
 // ── Bitmask lookup ─────────────────────────────────────────────────
@@ -247,8 +331,12 @@ fn lookup_mask(rows: &[&[Token]], input: &[char], full: bool, complete: bool) ->
     let mut ret = 0u16;
     for (index, tokens) in rows.iter().enumerate() {
         for (t_chars, t_len) in *tokens {
-            if *t_len < input_len { continue; }
-            if full && *t_len > input_len { continue; }
+            if *t_len < input_len {
+                continue;
+            }
+            if full && *t_len > input_len {
+                continue;
+            }
             let mut is_match = true;
             for i in 0..input.len() {
                 let ic = input[i];
@@ -303,14 +391,18 @@ fn split_cvc(s: &str) -> (Vec<char>, Vec<char>, Vec<char>) {
     // Scan from end to find vowel → lc boundary
     let mut lc_start = chars.len();
     while lc_start > 0 {
-        if is_vowel(chars[lc_start - 1]) { break; }
+        if is_vowel(chars[lc_start - 1]) {
+            break;
+        }
         lc_start -= 1;
     }
 
     // Scan from vowel boundary back to find fc start
     let mut vo_start = lc_start;
     while vo_start > 0 {
-        if !is_vowel(chars[vo_start - 1]) { break; }
+        if !is_vowel(chars[vo_start - 1]) {
+            break;
+        }
         vo_start -= 1;
     }
 
@@ -354,7 +446,8 @@ pub fn is_valid_cvc(s: &str) -> bool {
 
     // gi + i (+ consonant) → invalid: gi digraph requires a different vowel
     // qu + u (+ consonant) → invalid: qu digraph requires a different vowel
-    if vo.is_empty() && !lc.is_empty()
+    if vo.is_empty()
+        && !lc.is_empty()
         && ((fc.len() == 2 && fc[0] == 'g' && fc[1] == 'i')
             || (fc.len() == 2 && fc[0] == 'q' && fc[1] == 'u'))
     {
@@ -375,28 +468,44 @@ pub fn is_valid_cvc(s: &str) -> bool {
 
     let fc_mask = if !fc.is_empty() {
         let m = lookup_mask(FC_ROWS, &fc, !vo.is_empty(), true);
-        if m == 0 { return false; }
+        if m == 0 {
+            return false;
+        }
         m
-    } else { 0 };
+    } else {
+        0
+    };
 
     let vo_mask = if !vo.is_empty() {
         let m = lookup_mask(VO_ROWS, &vo, !lc.is_empty(), false);
-        if m == 0 { return false; }
+        if m == 0 {
+            return false;
+        }
         m
-    } else { 0 };
+    } else {
+        0
+    };
 
     let lc_mask = if !lc.is_empty() {
         let m = lookup_mask(LC_ROWS, &lc, false, true);
-        if m == 0 { return false; }
+        if m == 0 {
+            return false;
+        }
         m
-    } else { 0 };
+    } else {
+        0
+    };
 
     if vo_mask == 0 {
         return fc_mask != 0;
     }
     if fc_mask != 0 {
-        if !is_valid_cv(fc_mask, vo_mask) { return false; }
-        if lc_mask == 0 { return true; }
+        if !is_valid_cv(fc_mask, vo_mask) {
+            return false;
+        }
+        if lc_mask == 0 {
+            return true;
+        }
     }
     if lc_mask != 0 {
         return is_valid_vc(vo_mask, lc_mask);
@@ -427,13 +536,13 @@ mod tests {
 
     #[test]
     fn invalid_english_words() {
-        assert!(!is_valid_cvc("wôd"));      // wood
-        assert!(!is_valid_cvc("rebôt"));    // reboot
-        assert!(!is_valid_cvc("ôk"));       // ook
-        assert!(!is_valid_cvc("vâi"));      // vaai
-        assert!(!is_valid_cvc("alô"));      // aloo
-        assert!(!is_valid_cvc("world"));    // world
-        assert!(!is_valid_cvc("wỏld"));     // world (with tone)
+        assert!(!is_valid_cvc("wôd")); // wood
+        assert!(!is_valid_cvc("rebôt")); // reboot
+        assert!(!is_valid_cvc("ôk")); // ook
+        assert!(!is_valid_cvc("vâi")); // vaai
+        assert!(!is_valid_cvc("alô")); // aloo
+        assert!(!is_valid_cvc("world")); // world
+        assert!(!is_valid_cvc("wỏld")); // world (with tone)
     }
 
     #[test]
