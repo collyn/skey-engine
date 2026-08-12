@@ -266,9 +266,11 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                         }
                         if ls[first].variant == 2 {
                             if ls[first].from_w {
+                                // Standalone w→ư toggle-off: ư → w (consumed, no literal)
                                 ls[first].c = 'w';
                                 ls[first].is_vowel = false;
                                 ls[first].from_w = false;
+                                continue;
                             } else {
                                 // Toggle horn OFF + let w fall through (ư + w → uw)
                                 ls[first].variant = 0;
@@ -371,9 +373,10 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
                         }
                     }
                 }
-            } else {
+            } else if lc != 'w' {
                 // Trailing consonant: closed syllable → tone must be on
                 // last vowel. e.g. "tof"→"tò" then "a" then "n"→"toàn".
+                // Skip for literal 'w' — w is never a Vietnamese final consonant.
                 if let Some(end) = last_vowel_index(&ls) {
                     if end + 1 < ls.len() {
                         let fv = (0..end).find(|&j| ls[j].is_vowel);
@@ -1150,11 +1153,9 @@ mod tests {
         // Standalone w → ư, ww → ư→w + literal w → ww
         // Toggle-off now also produces a literal w (ow + w → ow, not o)
         assert_eq!(tt("w"), "ư");
-        assert_eq!(tt("ww"), "ww");    // ư→w toggle + literal w
-        assert_eq!(tt("www"), "www");  // literal w's
-        assert_eq!(tt("wwww"), "wwww");
-        // wws: toggle off → w, literal w, then s has no vowel → "wws"
-        assert_eq!(tt("wws"), "wws");
+        assert_eq!(tt("ww"), "w");     // ư→w toggle (consumed)
+        assert_eq!(tt("www"), "ww");   // w literal + w literal
+        assert_eq!(tt("wws"), "ws");  // w→ư, w→w (toggle), s has no vowel → ws
     }
     #[test]
     fn telex_w_toggle_regular() {
