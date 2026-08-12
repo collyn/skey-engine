@@ -155,6 +155,21 @@ fn vni_tone(c: char) -> Option<u8> {
 }
 
 pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
+    convert_telex_impl(input, modern, short_w)
+}
+
+/// Telex conversion with auto-restore: if the composed output is not valid
+/// Vietnamese and differs from the raw input, return the raw input instead.
+pub fn convert_telex_auto_restore(input: &str, modern: bool, short_w: bool) -> String {
+    let composed = convert_telex_impl(input, modern, short_w);
+    if composed != input && !crate::spelling::is_valid_cvc(&composed) {
+        input.to_string()
+    } else {
+        composed
+    }
+}
+
+fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
     let mut ls: Vec<Letter> = Vec::with_capacity(input.len());
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();

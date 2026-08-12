@@ -25,23 +25,35 @@ pub struct SkeyEngine {
     method: Method,
     modern: bool,
     short_w: bool,
+    auto_restore: bool,
 }
 
 impl SkeyEngine {
     pub fn new(method: Method) -> Self {
-        SkeyEngine { method, modern: true, short_w: false }
+        SkeyEngine { method, modern: true, short_w: false, auto_restore: false }
     }
 
     pub fn set_method(&mut self, method: Method) { self.method = method; }
     pub fn set_modern(&mut self, v: bool) { self.modern = v; }
     pub fn set_short_w(&mut self, v: bool) { self.short_w = v; }
+    pub fn set_auto_restore(&mut self, v: bool) { self.auto_restore = v; }
 
     pub fn transform(&self, input: &str) -> String {
-        match self.method {
+        let composed = match self.method {
             Method::Telex => engine::convert_telex(input, self.modern, self.short_w),
             Method::Vni => engine::convert_vni(input, self.modern, self.short_w),
             Method::TeipVni => engine::convert_teip_vni(input, self.modern, self.short_w),
             Method::Viqr => engine::convert_viqr(input),
+        };
+        // Auto-restore: if the composed output is not valid Vietnamese and
+        // differs from the raw input, return the raw input instead.
+        // Skip if the output is all ASCII (e.g. "cow" from toggle-off,
+        // English words) — those are intentional, not corrupted.
+        let all_ascii = composed.chars().all(|c| c.is_ascii());
+        if self.auto_restore && !all_ascii && composed != input && !Self::is_valid(&composed) {
+            input.to_string()
+        } else {
+            composed
         }
     }
 
@@ -96,6 +108,10 @@ pub unsafe extern "C" fn skey_engine_set_free_marking(e: *mut SkeyEngine, v: i32
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn skey_engine_set_short_w(e: *mut SkeyEngine, v: i32) {
     if !e.is_null() { unsafe { (*e).set_short_w(v != 0); } }
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_engine_set_auto_restore(e: *mut SkeyEngine, v: i32) {
+    if !e.is_null() { unsafe { (*e).set_auto_restore(v != 0); } }
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn skey_engine_set_bracket_uo(_e: *mut SkeyEngine, _v: i32) {}

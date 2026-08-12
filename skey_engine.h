@@ -23,6 +23,7 @@ void skey_engine_set_method(SkeyEngine *e, int32_t method);
 void skey_engine_set_tone_style(SkeyEngine *e, int32_t modern);
 void skey_engine_set_free_marking(SkeyEngine *e, int32_t free);
 void skey_engine_set_short_w(SkeyEngine *e, int32_t enabled);
+void skey_engine_set_auto_restore(SkeyEngine *e, int32_t enabled);
 void skey_engine_set_bracket_uo(SkeyEngine *e, int32_t enabled);
 
 // Core — stateless string transform
