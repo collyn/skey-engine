@@ -49,8 +49,14 @@ impl SkeyEngine {
         // differs from the raw input, return the raw input instead.
         // Skip if the output is all ASCII (e.g. "cow" from toggle-off,
         // English words) — those are intentional, not corrupted.
+        // Also skip if the input contains Vietnamese composition markers
+        // (dd → đ, vowel+w, double vowels) — the engine intentionally
+        // transformed them and the result should be kept.
         let all_ascii = composed.chars().all(|c| c.is_ascii());
-        if self.auto_restore && !all_ascii && composed != input && !Self::is_valid(&composed) {
+        if self.auto_restore && !all_ascii && composed != input
+            && !Self::is_valid(&composed)
+            && !has_vn_markers(input)
+        {
             input.to_string()
         } else {
             composed
@@ -60,6 +66,20 @@ impl SkeyEngine {
     pub fn is_valid(s: &str) -> bool {
         spelling::is_valid_cvc(s)
     }
+}
+
+/// Check whether the input string contains Vietnamese composition markers
+/// that signal intentional IME transformation. When these are present,
+/// auto-restore should not revert the engine output even if the result
+/// isn't a complete valid syllable (e.g. abbreviations like "đc").
+fn has_vn_markers(input: &str) -> bool {
+    let lower = input.to_lowercase();
+    // dd → đ (d-stroke digraph)
+    lower.contains("dd")
+    // w-based vowel modifiers: aw→ă, ow→ơ, uw→ư
+    || lower.contains("aw") || lower.contains("ow") || lower.contains("uw")
+    // double-vowel circumflex: aa→â, ee→ê, oo→ô
+    || lower.contains("aa") || lower.contains("ee") || lower.contains("oo")
 }
 
 // ── C FFI ──────────────────────────────────────────────────────────
