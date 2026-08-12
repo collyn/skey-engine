@@ -216,13 +216,11 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
-        // dd → đ: only create ONE đ. After that, all d's are literal
-        // (like Unikey). Search backwards for any unconverted d (not just
-        // adjacent) so "dad" → "đa".
-        // Toggle back to d only for non-consecutive d's (e.g. "dadd"→"dad").
+        // dd → đ: toggle behavior like w (dd→đ, ddd→dd, dddd→đd).
+        // Search backwards for any unconverted d so "dad" → "đa".
         if lc == 'd' {
-            // Only convert if no đ exists yet (at most one đ per word).
             if last_dstroke_index(&ls).is_none() {
+                // No đ yet — convert the last plain d to đ.
                 if let Some(di) = last_d_index(&ls) {
                     ls[di].is_dstroke = true;
                     if upper {
@@ -230,48 +228,44 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                     }
                     continue;
                 }
-            }
-            // Toggle: only for non-consecutive d's.
-            let prev_is_d = ls.last().map_or(false, |lt| lt.c == 'd');
-            if !prev_is_d {
+            } else {
+                // đ exists — toggle off, push literal d.
                 if let Some(di) = last_dstroke_index(&ls) {
                     ls[di].is_dstroke = false;
-                    // fall through: push literal 'd' (toggle-off)
+                    // fall through: push literal 'd'
                 }
             }
         }
-        // Double-vowel circumflex: one-shot per vowel type per cluster,
-        // like dd only creates one đ. ee→ê, eee→êe, eeee→êee.
+        // Double-vowel circumflex: toggle like w (ee→ê, eee→ee, eeee→êe).
         if tables::is_vowel(lc) && matches!(lc, 'a' | 'e' | 'o') && !ls.is_empty() {
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
-                // Don't create another circumflex if one already exists for this vowel.
-                let already_has = ls[..=vi].iter()
-                    .any(|lt| lt.is_vowel && lt.c == lc && lt.variant == 1);
-                if !already_has {
-                    for i in (0..=vi).rev() {
-                        if ls[i].is_vowel {
-                            if ls[i].c == lc {
-                                // Only apply if same vowel is adjacent or only
-                                // separated by 'y'/'u' (e.g. vay+a→vây, sau+a→sâu).
-                                // Other vowels like 'e' in o+e+o block the circumflex.
-                                if i < vi {
-                                    let blocked = ls[i+1..=vi].iter()
-                                        .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
-                                    if blocked { break; }
+                for i in (0..=vi).rev() {
+                    if ls[i].is_vowel {
+                        if ls[i].c == lc {
+                            // Only apply if same vowel is adjacent or only
+                            // separated by 'y'/'u' (e.g. vay+a→vây, sau+a→sâu).
+                            // Other vowels like 'e' in o+e+o block the circumflex.
+                            if i < vi {
+                                let blocked = ls[i+1..=vi].iter()
+                                    .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                if blocked { break; }
+                            }
+                            if ls[i].variant == 0 {
+                                ls[i].variant = 1;
+                                if upper {
+                                    ls[i].upper = true;
                                 }
-                                if ls[i].variant == 0 {
-                                    ls[i].variant = 1;
-                                    if upper {
-                                        ls[i].upper = true;
-                                    }
-                                    consumed = true;
-                                }
+                                consumed = true;
                                 break;
                             }
-                        } else {
-                            break;
+                            if ls[i].variant == 1 {
+                                ls[i].variant = 0;
+                                break;
+                            } // toggle off, then push copy
                         }
+                    } else {
+                        break;
                     }
                 }
             }
@@ -485,7 +479,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
 
-        // ── Telex dd → đ (at most one đ, toggle only non-consecutive) ──
+        // ── Telex dd → đ: toggle like w (dd→đ, ddd→dd) ──
         if lc == 'd' {
             if last_dstroke_index(&ls).is_none() {
                 if let Some(di) = last_d_index(&ls) {
@@ -495,47 +489,41 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                     }
                     continue;
                 }
-            }
-            let prev_is_d = ls.last().map_or(false, |lt| lt.c == 'd');
-            if !prev_is_d {
+            } else {
                 if let Some(di) = last_dstroke_index(&ls) {
                     ls[di].is_dstroke = false;
-                    // fall through: push literal 'd' (toggle-off)
+                    // fall through: push literal 'd'
                 }
             }
         }
 
-        // ── Telex circumflex: double same vowel ──
-        // One-shot per vowel type per cluster: ee→ê, eee→êe, eeee→êee.
+        // ── Telex circumflex: toggle like w (ee→ê, eee→ee) ──
         if tables::is_vowel(lc) && matches!(lc, 'a' | 'e' | 'o') && !ls.is_empty() {
             let mut consumed = false;
             if let Some(vi) = last_vowel_index(&ls) {
-                let already_has = ls[..=vi].iter()
-                    .any(|lt| lt.is_vowel && lt.c == lc && lt.variant == 1);
-                if !already_has {
-                    for i in (0..=vi).rev() {
-                        if ls[i].is_vowel {
-                            if ls[i].c == lc {
-                                // Only apply if same vowel is adjacent or only
-                                // separated by 'y'/'u' (e.g. vay+a→vây, sau+a→sâu).
-                                // Other vowels like 'e' in o+e+o block the circumflex.
-                                if i < vi {
-                                    let blocked = ls[i+1..=vi].iter()
-                                        .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
-                                    if blocked { break; }
+                for i in (0..=vi).rev() {
+                    if ls[i].is_vowel {
+                        if ls[i].c == lc {
+                            if i < vi {
+                                let blocked = ls[i+1..=vi].iter()
+                                    .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                if blocked { break; }
+                            }
+                            if ls[i].variant == 0 {
+                                ls[i].variant = 1;
+                                if upper {
+                                    ls[i].upper = true;
                                 }
-                                if ls[i].variant == 0 {
-                                    ls[i].variant = 1;
-                                    if upper {
-                                        ls[i].upper = true;
-                                    }
-                                    consumed = true;
-                                }
+                                consumed = true;
                                 break;
                             }
-                        } else {
-                            break;
+                            if ls[i].variant == 1 {
+                                ls[i].variant = 0;
+                                break;
+                            } // toggle off, then push copy
                         }
+                    } else {
+                        break;
                     }
                 }
             }
@@ -943,16 +931,16 @@ mod tests {
         assert_eq!(tt("dangdf"), "đàng"); // d...d converts first d
         assert_eq!(tt("DAD"), "ĐA");
         assert_eq!(tt("Dad"), "Đa");
-        // Toggle: non-consecutive d toggles đ back to d
+        // Toggle: any d toggles đ on/off (like w: dd→đ, ddd→dd)
         assert_eq!(tt("dadd"), "dad");
-        // Consecutive d's after first đ: all literal (like Unikey)
-        assert_eq!(tt("ddd"), "đd");
-        assert_eq!(tt("dddd"), "đdd");
-        assert_eq!(tt("ddddd"), "đddd");
-        // ddda: ddd→đd then a → "đda"
-        assert_eq!(tt("ddda"), "đda");
-        // ddddf: no vowel in [đ,d,d] → tone f falls through
-        assert_eq!(tt("ddddf"), "đddf");
+        // Toggle pattern: dd→đ, ddd→dd, dddd→dđ, ddddd→ddd
+        assert_eq!(tt("ddd"), "dd");
+        assert_eq!(tt("dddd"), "dđ");
+        assert_eq!(tt("ddddd"), "ddd");
+        // ddda: dd→đ, ddd→dd, ddda→dda
+        assert_eq!(tt("ddda"), "dda");
+        // ddddf: dd→đ, ddd→dd, dddd→dđ, ddddf→dđf (tone falls through)
+        assert_eq!(tt("ddddf"), "dđf");
     }
     #[test]
     fn telex_marks_traditional() {
@@ -1090,20 +1078,20 @@ mod tests {
         assert_eq!(tv("sao1f"), "sào"); // VNI acute + Telex grave
     }
 
-    // ── One-shot double-vowel (like dd, no toggle) ────────────────────
+    // ── Double-vowel toggle (like w: ee→ê, eee→ee, eeee→êe) ──────────
     #[test]
-    fn telex_double_vowel_one_shot() {
+    fn telex_double_vowel_toggle() {
         assert_eq!(tt("roo"), "rô");
-        assert_eq!(tt("rooot"), "rôot"); // oo→ô, then plain o, t
+        assert_eq!(tt("rooot"), "root"); // oo→ô, ooo→oo
         assert_eq!(tt("aa"), "â");
-        assert_eq!(tt("aaa"), "âa");     // one-shot: no toggle back
-        assert_eq!(tt("aaaa"), "âaa");   // plain a's after circumflex
+        assert_eq!(tt("aaa"), "aa");     // toggle off + push copy
+        assert_eq!(tt("aaaa"), "aâ");    // toggle on new pair
         assert_eq!(tt("ee"), "ê");
-        assert_eq!(tt("eee"), "êe");
-        assert_eq!(tt("eeee"), "êee");
+        assert_eq!(tt("eee"), "ee");
+        assert_eq!(tt("eeee"), "eê");
         assert_eq!(tt("oo"), "ô");
-        assert_eq!(tt("ooo"), "ôo");
-        assert_eq!(tt("oooo"), "ôoo");
+        assert_eq!(tt("ooo"), "oo");
+        assert_eq!(tt("oooo"), "oô");
     }
 
     // ── Unikey-style double-vowel across y ──────────────────────────
@@ -1971,7 +1959,7 @@ fn comprehensive_vietnamese() {
         // Double-vowel across consonant: nhan+a→nhân, khan+a→khân
         ("nhana", "nhân", 1),
         ("khanas", "khấn", 1),
-        ("nhanaa", "nhâna", 1),
+        ("nhanaa", "nhana", 1),
         ("toans", "toán", 1),
         ("thowif", "thời", 1),
         ("xin", "xin", 1),
@@ -1997,8 +1985,8 @@ fn comprehensive_vietnamese() {
         // Toggle only for non-consecutive d's; at most one đ
         ("dadd", "dad", 1),
         // Consecutive d's after first đ: all literal
-        ("ddd", "đd", 1),
-        ("dddd", "đdd", 1),
+        ("ddd", "dd", 1),
+        ("dddd", "dđ", 1),
         // ═══ CONSONANT CLUSTERS ═══
         ("nhas", "nhá", 1),
         ("nghir", "nghỉ", 1),
