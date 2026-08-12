@@ -5,18 +5,19 @@
 use crate::tables;
 
 #[derive(Clone, Copy, Default)]
-struct Letter {
-    c: char,
-    is_vowel: bool,
-    variant: u8,
-    tone: u8,
-    is_dstroke: bool,
-    upper: bool,
-    from_w: bool,
+pub(crate) struct Letter {
+    pub(crate) c: char,
+    pub(crate) is_vowel: bool,
+    pub(crate) variant: u8,
+    pub(crate) tone: u8,
+    pub(crate) is_dstroke: bool,
+    pub(crate) upper: bool,
+    pub(crate) from_w: bool,
+    pub(crate) horn_propagated: bool, // horn set by propagation (not explicit w)
 }
 
 impl Letter {
-    fn new(c: char, upper: bool) -> Self {
+    pub(crate) fn new(c: char, upper: bool) -> Self {
         let lc = c.to_ascii_lowercase();
         Letter {
             c: lc,
@@ -26,6 +27,7 @@ impl Letter {
             is_dstroke: false,
             upper,
             from_w: false,
+            horn_propagated: false,
         }
     }
 }
@@ -68,19 +70,6 @@ fn last_dstroke_index(ls: &[Letter]) -> Option<usize> {
 ///
 /// Special rule (matches x-unikey VSeqList): in a "u"+"a" diphthong, horn
 /// goes on `u` (→ ưa), not breve on `a` (→ uă).  For all other combinations
-/// the last matching vowel (a/o/u) wins.  Used by the `w` key handler so
-/// that e.g. "toi" + w finds 'o' (not 'i').
-fn last_w_target_index(ls: &[Letter]) -> Option<usize> {
-    // u+a → horn on u (ưa), matching x-unikey withHook for vs_ua
-    let has_u = ls.iter().any(|lt| lt.is_vowel && lt.c == 'u');
-    let has_a = ls.iter().any(|lt| lt.is_vowel && lt.c == 'a');
-    if has_u && has_a {
-        return ls.iter().rposition(|lt| lt.is_vowel && lt.c == 'u');
-    }
-    ls.iter()
-        .rposition(|lt| lt.is_vowel && matches!(lt.c, 'a' | 'o' | 'u'))
-}
-
 fn tone_vowel_index(ls: &[Letter], modern: bool) -> Option<usize> {
     let end = last_vowel_index(ls)?;
     let mut start = end;
@@ -244,86 +233,20 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
         if lc == 'w' {
-            if let Some(vi) = last_w_target_index(&ls) {
-                match ls[vi].c {
-                    'a' => {
-                        if ls[vi].variant == 2 {
-                            // Toggle breve OFF and let w fall through as literal
-                            // (ă + w → aw, not ă + w → a then a + w → aw)
-                            ls[vi].variant = 0;
-                            ls[vi].from_w = true;
-                        } else if ls[vi].from_w && ls[vi].variant == 0 {
-                            // Already toggled off — w falls through as literal
-                        } else {
-                            ls[vi].variant = 2;
-                            ls[vi].from_w = false;
-                            continue;
-                        }
-                    }
-                    'o' => {
-                        if ls[vi].variant == 2 {
-                            // Toggle horn OFF + let w fall through (ơ + w → ow)
-                            ls[vi].variant = 0;
-                            ls[vi].from_w = true;
-                            if vi > 0 && ls[vi - 1].c == 'u' && ls[vi - 1].variant == 2 {
-                                ls[vi - 1].variant = 0;
-                                ls[vi - 1].from_w = true;
-                            }
-                        } else if ls[vi].from_w && ls[vi].variant == 0 {
-                            // Already toggled — w falls through
-                        } else if ls[vi].variant == 0 {
-                            ls[vi].variant = 2;
-                            ls[vi].from_w = false;
-                            if vi > 0 && ls[vi - 1].c == 'u' {
-                                ls[vi - 1].variant = 2;
-                                ls[vi - 1].from_w = false;
-                            }
-                            continue;
-                        }
-                    }
-                    'u' => {
-                        let mut first = vi;
-                        while first > 0 && ls[first - 1].c == 'u' && ls[first - 1].is_vowel {
-                            first -= 1;
-                        }
-                        if ls[first].variant == 2 {
-                            if ls[first].from_w {
-                                // Standalone w→ư toggle-off: ư → w (consumed, no literal)
-                                ls[first].c = 'w';
-                                ls[first].is_vowel = false;
-                                ls[first].from_w = false;
-                                continue;
-                            } else {
-                                // Toggle horn OFF + let w fall through (ư + w → uw)
-                                ls[first].variant = 0;
-                                ls[first].from_w = true;
-                            }
-                        } else if ls[first].from_w && ls[first].variant == 0 {
-                            // Already toggled — w falls through
-                        } else {
-                            ls[first].variant = 2;
-                            ls[first].from_w = false;
-                            continue;
-                        }
-                    }
-                    _ => {}
+            // Two-phase w handling (from fcitx5-unikey):
+            // Phase 1: try to hook/breve the current vowel cluster
+            // Phase 2: if not applicable, insert standalone ư (short_w)
+            match crate::vseq::try_apply_hook(&mut ls) {
+                crate::vseq::HookResult::Applied => continue,
+                crate::vseq::HookResult::ToggledOff => {
+                    // w falls through as literal below (pushed after match)
                 }
-            } else if short_w
-                && last_vowel_index(&ls).is_none()
-                && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel)
-            {
-                // short_w mode: standalone w → ư only when no vowel exists
-                // (otherwise w passes through as literal)
-                ls.push(Letter {
-                    c: 'u',
-                    is_vowel: true,
-                    variant: 2,
-                    tone: 0,
-                    is_dstroke: false,
-                    upper,
-                    from_w: true,
-                });
-                continue;
+                crate::vseq::HookResult::NotApplicable => {
+                    if crate::vseq::try_insert_horn(&mut ls, short_w, upper) {
+                        continue;
+                    }
+                    // w falls through as literal
+                }
             }
         }
         if let Some(t) = telex_tone(lc) {
@@ -341,6 +264,30 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
             }
         }
         ls.push(Letter::new(ch, upper));
+        // Horn propagation: ư+o→ươ, ơ+u→ươ within vowel cluster.
+        // When a horned vowel is followed by a compatible vowel, share horn.
+        if ls.len() >= 2 {
+            let last = ls.len() - 1;
+            if ls[last].is_vowel && ls[last].variant == 0 {
+                let prev = last - 1;
+                if ls[prev].is_vowel && ls[prev].variant == 2 {
+                    if ls[prev].c == 'u' && ls[last].c == 'o' {
+                        ls[last].variant = 2;
+                        ls[last].horn_propagated = true;
+                    }
+                    if ls[prev].c == 'o' && ls[last].c == 'u' {
+                        let has_u_horn_before = prev >= 1
+                            && ls[prev - 1].is_vowel
+                            && ls[prev - 1].c == 'u'
+                            && ls[prev - 1].variant == 2;
+                        if !has_u_horn_before {
+                            ls[last].variant = 2;
+                            ls[last].horn_propagated = true;
+                        }
+                    }
+                }
+            }
+        }
         // Tone reassignment: when a new vowel is pushed, move tone if the
         // vowel structure has changed.
         // e.g. "gis"→"gí" then "a"→"giá" (tone moves from i to a).
@@ -546,75 +493,16 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
 
         // ── Telex w (breve/horn) ──
         if lc == 'w' {
-            if let Some(vi) = last_w_target_index(&ls) {
-                match ls[vi].c {
-                    'a' => {
-                        if ls[vi].variant == 2 {
-                            ls[vi].variant = 0;
-                            ls[vi].from_w = true;
-                        } else if ls[vi].from_w && ls[vi].variant == 0 {
-                        } else {
-                            ls[vi].variant = 2;
-                            ls[vi].from_w = false;
-                            continue;
-                        }
-                    }
-                    'o' => {
-                        if ls[vi].variant == 2 {
-                            ls[vi].variant = 0;
-                            ls[vi].from_w = true;
-                            if vi > 0 && ls[vi - 1].c == 'u' && ls[vi - 1].variant == 2 {
-                                ls[vi - 1].variant = 0;
-                                ls[vi - 1].from_w = true;
-                            }
-                        } else if ls[vi].from_w && ls[vi].variant == 0 {
-                        } else if ls[vi].variant == 0 {
-                            ls[vi].variant = 2;
-                            ls[vi].from_w = false;
-                            if vi > 0 && ls[vi - 1].c == 'u' {
-                                ls[vi - 1].variant = 2;
-                                ls[vi - 1].from_w = false;
-                            }
-                            continue;
-                        }
-                    }
-                    'u' => {
-                        let mut first = vi;
-                        while first > 0 && ls[first - 1].c == 'u' && ls[first - 1].is_vowel {
-                            first -= 1;
-                        }
-                        if ls[first].variant == 2 {
-                            if ls[first].from_w {
-                                ls[first].c = 'w';
-                                ls[first].is_vowel = false;
-                                ls[first].from_w = false;
-                            } else {
-                                ls[first].variant = 0;
-                                ls[first].from_w = true;
-                            }
-                        } else if ls[first].from_w && ls[first].variant == 0 {
-                        } else {
-                            ls[first].variant = 2;
-                            ls[first].from_w = false;
-                            continue;
-                        }
-                    }
-                    _ => {}
+            match crate::vseq::try_apply_hook(&mut ls) {
+                crate::vseq::HookResult::Applied => continue,
+                crate::vseq::HookResult::ToggledOff => {
+                    // w falls through as literal
                 }
-            } else if short_w
-                && last_vowel_index(&ls).is_none()
-                && !ls.last().map_or(false, |lt| lt.c == 'w' && !lt.is_vowel)
-            {
-                ls.push(Letter {
-                    c: 'u',
-                    is_vowel: true,
-                    variant: 2,
-                    tone: 0,
-                    is_dstroke: false,
-                    upper,
-                    from_w: true,
-                });
-                continue;
+                crate::vseq::HookResult::NotApplicable => {
+                    if crate::vseq::try_insert_horn(&mut ls, short_w, upper) {
+                        continue;
+                    }
+                }
             }
         }
 
@@ -750,6 +638,7 @@ pub fn convert_viqr(input: &str) -> String {
                     is_dstroke: false,
                     upper: false,
                     from_w: false,
+                    horn_propagated: false,
                 });
                 continue;
             }
@@ -924,6 +813,14 @@ mod tests {
         assert_eq!(t("cuowcs"), "cước");
         assert_eq!(t("dduwowcj"), "được");
         assert_eq!(t("nguwowif"), "người");
+        // Horn propagation: ư+o→ươ (single w serves both vowels)
+        assert_eq!(t("uwocs"), "ước");
+        assert_eq!(t("truwocs"), "trước");
+        assert_eq!(t("luwowcs"), "lước");   // explicit w on both — still works (sắc → ước)
+        assert_eq!(t("truwowcs"), "trước"); // "uwo" abbreviated = "uow" long form
+        // Triphthong: horn does not propagate further
+        assert_eq!(t("uowus"), "ướu");  // ươu — horn stays, u unmodified
+        assert_eq!(t("ruowus"), "rướu");
     }
     #[test]
     fn telex_gi_qu() {

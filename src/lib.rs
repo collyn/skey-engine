@@ -12,6 +12,7 @@ pub mod tables;
 pub mod engine;
 pub mod spelling;
 pub mod charset;
+pub mod vseq;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -73,13 +74,11 @@ impl SkeyEngine {
 /// auto-restore should not revert the engine output even if the result
 /// isn't a complete valid syllable (e.g. abbreviations like "đc").
 pub(crate) fn has_vn_markers(input: &str) -> bool {
+    // Only check for the unambiguous Vietnamese digraph "dd" → "đ".
+    // Other markers (aw, ow, etc.) can appear in English words and
+    // should still be auto-restored when the composed output is invalid.
     let lower = input.to_lowercase();
-    // dd → đ (d-stroke digraph)
     lower.contains("dd")
-    // w-based vowel modifiers: aw→ă, ow→ơ, uw→ư
-    || lower.contains("aw") || lower.contains("ow") || lower.contains("uw")
-    // double-vowel circumflex: aa→â, ee→ê, oo→ô
-    || lower.contains("aa") || lower.contains("ee") || lower.contains("oo")
 }
 
 // ── C FFI ──────────────────────────────────────────────────────────
