@@ -225,44 +225,61 @@ pub fn convert_telex(input: &str, modern: bool, short_w: bool) -> String {
             if let Some(vi) = last_w_target_index(&ls) {
                 match ls[vi].c {
                     'a' => {
-                        ls[vi].variant = if ls[vi].variant == 2 { 0 } else { 2 };
-                        continue;
+                        if ls[vi].variant == 2 {
+                            ls[vi].variant = 0;
+                            ls[vi].from_w = true;
+                            continue;
+                        } else if ls[vi].from_w && ls[vi].variant == 0 {
+                            // Already toggled off — let w fall through as literal
+                        } else {
+                            ls[vi].variant = 2;
+                            ls[vi].from_w = false;
+                            continue;
+                        }
                     }
                     'o' => {
                         if ls[vi].variant == 2 {
                             ls[vi].variant = 0;
+                            ls[vi].from_w = true;
                             if vi > 0 && ls[vi - 1].c == 'u' && ls[vi - 1].variant == 2 {
                                 ls[vi - 1].variant = 0;
+                                ls[vi - 1].from_w = true;
                             }
-                        } else {
+                            continue;
+                        } else if ls[vi].from_w && ls[vi].variant == 0 {
+                            // Already toggled off — let w fall through
+                        } else if ls[vi].variant == 0 {
                             ls[vi].variant = 2;
+                            ls[vi].from_w = false;
                             if vi > 0 && ls[vi - 1].c == 'u' {
                                 ls[vi - 1].variant = 2;
+                                ls[vi - 1].from_w = false;
                             }
+                            continue;
                         }
-                        continue;
                     }
                     'u' => {
-                        // Find the first u in a consecutive u-cluster
                         let mut first = vi;
                         while first > 0 && ls[first - 1].c == 'u' && ls[first - 1].is_vowel {
                             first -= 1;
                         }
                         if ls[first].variant == 2 {
-                            // Toggle horn OFF: clear variant on first u of cluster
-                            // (matches "uu" + "w" toggles back to "uu")
                             if ls[first].from_w {
-                                // standalone w toggle-off: ư → w
                                 ls[first].c = 'w';
                                 ls[first].is_vowel = false;
                                 ls[first].from_w = false;
+                            } else {
+                                ls[first].variant = 0;
+                                ls[first].from_w = true;
                             }
-                            ls[first].variant = 0;
+                            continue;
+                        } else if ls[first].from_w && ls[first].variant == 0 {
+                            // Already toggled off — let w fall through
                         } else {
-                            // Horn ON: apply to first u of cluster (e.g. uu+w→ưu)
                             ls[first].variant = 2;
+                            ls[first].from_w = false;
+                            continue;
                         }
-                        continue;
                     }
                     _ => {}
                 }
@@ -506,22 +523,36 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
             if let Some(vi) = last_w_target_index(&ls) {
                 match ls[vi].c {
                     'a' => {
-                        ls[vi].variant = if ls[vi].variant == 2 { 0 } else { 2 };
-                        continue;
+                        if ls[vi].variant == 2 {
+                            ls[vi].variant = 0;
+                            ls[vi].from_w = true;
+                            continue;
+                        } else if ls[vi].from_w && ls[vi].variant == 0 {
+                        } else {
+                            ls[vi].variant = 2;
+                            ls[vi].from_w = false;
+                            continue;
+                        }
                     }
                     'o' => {
                         if ls[vi].variant == 2 {
                             ls[vi].variant = 0;
+                            ls[vi].from_w = true;
                             if vi > 0 && ls[vi - 1].c == 'u' && ls[vi - 1].variant == 2 {
                                 ls[vi - 1].variant = 0;
+                                ls[vi - 1].from_w = true;
                             }
-                        } else {
+                            continue;
+                        } else if ls[vi].from_w && ls[vi].variant == 0 {
+                        } else if ls[vi].variant == 0 {
                             ls[vi].variant = 2;
+                            ls[vi].from_w = false;
                             if vi > 0 && ls[vi - 1].c == 'u' {
                                 ls[vi - 1].variant = 2;
+                                ls[vi - 1].from_w = false;
                             }
+                            continue;
                         }
-                        continue;
                     }
                     'u' => {
                         let mut first = vi;
@@ -533,12 +564,17 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                 ls[first].c = 'w';
                                 ls[first].is_vowel = false;
                                 ls[first].from_w = false;
+                            } else {
+                                ls[first].variant = 0;
+                                ls[first].from_w = true;
                             }
-                            ls[first].variant = 0;
+                            continue;
+                        } else if ls[first].from_w && ls[first].variant == 0 {
                         } else {
                             ls[first].variant = 2;
+                            ls[first].from_w = false;
+                            continue;
                         }
-                        continue;
                     }
                     _ => {}
                 }
