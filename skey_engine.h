@@ -28,6 +28,9 @@ void skey_engine_set_auto_restore(SkeyEngine *e, int32_t enabled);
 // word list instead of syllable rules.  User words can extend it.
 void skey_engine_set_dict(SkeyEngine *e, int32_t enabled);
 void skey_engine_add_word(SkeyEngine *e, const char *word);
+void skey_engine_clear_words(SkeyEngine *e);
+// All embedded dictionary words joined by '\n'.  Free with skey_free_string.
+char *skey_engine_dict_words(void);
 void skey_engine_set_bracket_uo(SkeyEngine *e, int32_t enabled);
 
 // Core — stateless string transform

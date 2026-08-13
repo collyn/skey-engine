@@ -93,6 +93,11 @@ impl SkeyEngine {
         self.user_words.insert(word.to_lowercase());
     }
 
+    /// Remove all user words (reload of the user dictionary file).
+    pub fn clear_words(&mut self) {
+        self.user_words.clear();
+    }
+
     /// Dictionary mode validity: `word` (lowercase) is a real Vietnamese
     /// word or a viable mid-word intermediate, so composition stays visible
     /// in real time while typing.
@@ -265,6 +270,17 @@ pub unsafe extern "C" fn skey_engine_add_word(e: *mut SkeyEngine, word: *const c
         Ok(s) => s, Err(_) => return,
     };
     unsafe { (*e).add_word(s); }
+}
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_engine_clear_words(e: *mut SkeyEngine) {
+    if !e.is_null() { unsafe { (*e).clear_words(); } }
+}
+
+/// All embedded dictionary words joined by '\n' (sorted).  Caller frees
+/// with skey_free_string().
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn skey_engine_dict_words() -> *mut c_char {
+    CString::new(dict().join("\n")).unwrap_or_default().into_raw()
 }
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn skey_engine_set_bracket_uo(_e: *mut SkeyEngine, _v: i32) {}
