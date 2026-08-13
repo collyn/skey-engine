@@ -16,6 +16,7 @@ pub(crate) struct Letter {
     pub(crate) horn_propagated: bool, // horn set by propagation (not explicit w)
     pub(crate) circ_toggled: bool,    // circumflex was toggled off — don't reapply
     pub(crate) d_toggled: bool,       // đ was toggled off — don't recreate
+    pub(crate) horn_toggled: bool,    // horn was toggled off — don't reapply
 }
 
 impl Letter {
@@ -32,6 +33,7 @@ impl Letter {
             horn_propagated: false,
             circ_toggled: false,
             d_toggled: false,
+            horn_toggled: false,
         }
     }
 }
@@ -716,6 +718,7 @@ pub fn convert_viqr(input: &str) -> String {
                     horn_propagated: false,
                     circ_toggled: false,
                     d_toggled: false,
+                    horn_toggled: false,
                 });
                 continue;
             }
@@ -1161,6 +1164,9 @@ mod tests {
         assert_eq!(tt("ew"), "ew");
         assert_eq!(tt("uow"), "ươ"); // u+o+w → ươ
         assert_eq!(tt("uoww"), "uow"); // ươ+w → uo + literal w → uow
+        // Triple-w: one-shot after toggle (like aa→â, aaa→aa, aaaa→aaa)
+        assert_eq!(tt("owww"), "oww"); // ơ→o toggle off once, then literal w's
+        assert_eq!(tt("uowww"), "uoww"); // ươ→uo toggle off once, then literal w's
                                        // uu + w → ưu (horn on first u of cluster, matches Unikey Windows)
         assert_eq!(tt("uuw"), "ưu");
         assert_eq!(tt("uuww"), "uuw"); // 2nd w: toggle ưu→uu + literal w → uuw

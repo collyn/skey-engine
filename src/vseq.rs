@@ -168,12 +168,20 @@ pub(crate) fn try_apply_hook(ls: &mut Vec<Letter>) -> HookResult {
                 ls[vstart + i].variant = 0;
                 ls[vstart + i].from_w = true;
                 ls[vstart + i].horn_propagated = false;
+                ls[vstart + i].horn_toggled = true; // toggled once — no reapply
             }
         }
         HookResult::ToggledOff
     } else {
-        // Toggle ON: apply hook to unhooked positions
-        // Apply hook based on the VSeq table mask.
+        // Toggle ON: apply hook to unhooked positions.
+        // Skip if this vowel was already toggled off (one-shot after toggle).
+        let any_toggled = (0..vs.len as usize)
+            .filter(|&i| (vs.hook_mask >> i) & 1 != 0)
+            .any(|i| ls[vstart + i].horn_toggled);
+        if any_toggled {
+            return HookResult::ToggledOff; // w falls through as literal
+        }
+
         // Note: The fcitx5-unikey "thuong rule" (uo with h/kh/th prefix →
         // o-only hook) is available via uo_o_only_prefix() but currently
         // disabled to match existing test expectations.
@@ -306,6 +314,7 @@ impl Letter {
             horn_propagated: false,
             circ_toggled: false,
             d_toggled: false,
+            horn_toggled: false,
         }
     }
 }
