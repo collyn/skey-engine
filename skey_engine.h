@@ -24,6 +24,10 @@ void skey_engine_set_tone_style(SkeyEngine *e, int32_t modern);
 void skey_engine_set_free_marking(SkeyEngine *e, int32_t free);
 void skey_engine_set_short_w(SkeyEngine *e, int32_t enabled);
 void skey_engine_set_auto_restore(SkeyEngine *e, int32_t enabled);
+// Dictionary mode: auto-restore validates against the embedded Vietnamese
+// word list instead of syllable rules.  User words can extend it.
+void skey_engine_set_dict(SkeyEngine *e, int32_t enabled);
+void skey_engine_add_word(SkeyEngine *e, const char *word);
 void skey_engine_set_bracket_uo(SkeyEngine *e, int32_t enabled);
 
 // Core — stateless string transform

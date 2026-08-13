@@ -901,6 +901,13 @@ mod tests {
                                             // Triphthong: horn does not propagate further
         assert_eq!(t("uowus"), "ướu"); // ươu — horn stays, u unmodified
         assert_eq!(t("ruowus"), "rướu");
+        // w replaces circumflex with hook (matches unikey): ô→ơ, â→ă
+        assert_eq!(t("luoojcw"), "lược"); // luộc + w → lược
+        assert_eq!(t("oow"), "ơ");
+        assert_eq!(t("coow"), "cơ");
+        assert_eq!(t("aaw"), "ă");
+        assert_eq!(t("ooiw"), "ơi"); // ôi + w → ơi
+        assert_eq!(t("uooiw"), "ươi");
     }
     #[test]
     fn telex_gi_qu() {

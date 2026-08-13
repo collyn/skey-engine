@@ -18,7 +18,10 @@ with a simple Letter-based accumulator model.
 - **String-based `is_valid()`** — CVC validation works on the composed string
   directly, not tied to engine state
 - **4 input methods** — Telex, VNI, VIQR, and combined Telex+VNI
-- **Thin FFI** — 8 C functions covering lifecycle, config, transform, and validation
+- **Embedded dictionary** — optional dictionary mode for auto-restore: validates
+  the composed output against a ~7.9k-word Vietnamese list compiled into the
+  binary (no runtime file loading), extensible with user words
+- **Thin FFI** — 10 C functions covering lifecycle, config, transform, and validation
 
 ## API
 
@@ -33,6 +36,8 @@ void skey_engine_set_tone_style(SkeyEngine *e, int32_t modern);    // 0=traditio
 void skey_engine_set_short_w(SkeyEngine *e, int32_t enabled);      // standalone w→ư
 void skey_engine_set_free_marking(SkeyEngine *e, int32_t free);    // reserved
 void skey_engine_set_bracket_uo(SkeyEngine *e, int32_t enabled);   // reserved
+void skey_engine_set_dict(SkeyEngine *e, int32_t enabled);         // auto-restore checks real words
+void skey_engine_add_word(SkeyEngine *e, const char *word);        // user word override
 
 // Core
 char   *skey_engine_transform(SkeyEngine *e, const char *input);

@@ -188,7 +188,9 @@ pub(crate) fn try_apply_hook(ls: &mut Vec<Letter>) -> HookResult {
         let effective_mask = vs.hook_mask;
 
         for i in 0..vs.len as usize {
-            if (effective_mask >> i) & 1 != 0 && ls[vstart + i].variant == 0 {
+            if (effective_mask >> i) & 1 != 0 && ls[vstart + i].variant != 2 {
+                // Hook replaces circumflex too (matches unikey):
+                // ô→ơ (uô→ươ, "luộc"+w→"lược"), â→ă.
                 ls[vstart + i].variant = 2;
                 ls[vstart + i].from_w = false;
             }
@@ -227,7 +229,8 @@ fn apply_single_hook(ls: &mut Vec<Letter>, vi: usize) -> HookResult {
                 HookResult::ToggledOff
             } else if ls[vi].from_w && ls[vi].variant == 0 {
                 HookResult::ToggledOff
-            } else if ls[vi].variant == 0 {
+            } else {
+                // Hook replaces circumflex too: ô→ơ (matches unikey).
                 ls[vi].variant = 2;
                 ls[vi].from_w = false;
                 // Also horn the preceding u (uo → ươ)
@@ -236,8 +239,6 @@ fn apply_single_hook(ls: &mut Vec<Letter>, vi: usize) -> HookResult {
                     ls[vi - 1].from_w = false;
                 }
                 HookResult::Applied
-            } else {
-                HookResult::NotApplicable
             }
         }
         'u' => {
