@@ -382,7 +382,10 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                     }
                     // Triphthong: when expanding from 2 to 3+ vowels, move
                     // tone to the correct vowel (middle for most, 3rd for uyê).
-                    if vcount >= 3 {
+                    // Only for a genuine vowel cluster — a consonant in
+                    // between ("force" → f,o,c,e) must not count as a third
+                    // vowel, or the tone lands on the consonant and is lost.
+                    if vcount >= 3 && (fv..=last).all(|j| ls[j].is_vowel) {
                         for j in (fv..last).rev() {
                             if ls[j].tone != 0 {
                                 let t = ls[j].tone;
@@ -876,6 +879,15 @@ mod tests {
         assert_eq!(t("oos"), "ố");
         assert_eq!(t("ows"), "ớ");
         assert_eq!(t("uws"), "ứ");
+    }
+    #[test]
+    fn telex_tone_not_lost_on_consonant_gap() {
+        // A consonant between vowels must not be counted as a vowel
+        // cluster member — the tone stays on the real vowel.
+        assert_eq!(t("for"), "fỏ");
+        assert_eq!(t("force"), "fỏce");
+        assert_eq!(t("vai"), "vai");
+        assert_eq!(t("vaif"), "vài");
     }
     #[test]
     fn telex_words() {

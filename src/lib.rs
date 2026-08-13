@@ -396,6 +396,8 @@ mod tests {
         assert_eq!(e.transform("luwocs"), "luwocs");
         // English "need" → "nêd" is not in the dictionary either.
         assert_eq!(e.transform("need"), "need");
+        // "force" → "fỏce" is not a word → restored.
+        assert_eq!(e.transform("force"), "force");
     }
 
     #[test]
