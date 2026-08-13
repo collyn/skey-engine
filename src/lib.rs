@@ -77,16 +77,21 @@ pub(crate) fn has_vn_markers(input: &str) -> bool {
     // Vietnamese composition markers that signal intentional IME transforms.
     //   dd → đ                  (d-stroke — always intentional)
     //   aaa/eee/ooo             (3+ same vowel = circumflex toggle in progress)
+    //   aww/oww/uww             (vowel+w+w = horn/breve toggle chain)
     //
-    // We deliberately do NOT match "aa"/"ee"/"oo" (2 vowels) because those
-    // appear in English words (need, good, book) that should be auto-restored.
-    // A simple double-vowel "aa"→"â" is always a valid single character,
-    // so auto-restore won't touch it anyway.
+    // We deliberately do NOT match "aw"/"ow"/"uw" (single w) — those appear
+    // in English words (cow, how, law) whose output (cơ, hơ, lă) is valid
+    // Vietnamese anyway, so auto-restore wouldn't touch them.
+    // The toggle chains (vowww → vơw) produce invalid output that needs
+    // protection from auto-restore.
     let lower = input.to_lowercase();
     lower.contains("dd")
         || lower.contains("aaa")
         || lower.contains("eee")
         || lower.contains("ooo")
+        || lower.contains("aww")
+        || lower.contains("oww")
+        || lower.contains("uww")
 }
 
 // ── C FFI ──────────────────────────────────────────────────────────
