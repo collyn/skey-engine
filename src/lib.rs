@@ -435,6 +435,17 @@ mod tests {
     }
 
     #[test]
+    fn double_vowel_swap_survives_auto_restore() {
+        // lắm + a → lấm (hook↔circumflex swap) is a valid word, so
+        // auto-restore must NOT revert it to raw keystrokes.
+        let e = eng(true, false);
+        assert_eq!(e.transform("lawsma"), "lấm");
+        let e = eng(true, true);
+        assert_eq!(e.transform("lawsma"), "lấm"); // dict mode keeps it too
+        assert_eq!(e.transform("luowjco"), "luộc"); // lược + o → luộc (ươ→uô)
+    }
+
+    #[test]
     fn dict_off_keeps_rule_based_behavior() {
         let e = eng(true, false);
         assert_eq!(e.transform("luwocs"), "lước"); // rule-valid → kept

@@ -281,6 +281,27 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                                     ls[i].circ_toggled = true;
                                     break;
                                 } // unmerge once
+                                if ls[i].variant == 2 {
+                                    // Swap hook↔circumflex: ă→â, ơ→ô (tone
+                                    // stays on the vowel).  For a hooked o
+                                    // after a hooked u, unhook the u too
+                                    // (ươ→uô) — inverse of the w rule where
+                                    // hook replaces circumflex (uô→ươ).
+                                    ls[i].variant = 1;
+                                    if upper {
+                                        ls[i].upper = true;
+                                    }
+                                    if ls[i].c == 'o'
+                                        && i > 0
+                                        && ls[i - 1].is_vowel
+                                        && ls[i - 1].c == 'u'
+                                        && ls[i - 1].variant == 2
+                                    {
+                                        ls[i - 1].variant = 0;
+                                    }
+                                    consumed = true;
+                                    break;
+                                }
                             }
                         } else {
                             break;
@@ -555,6 +576,27 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                     ls[i].circ_toggled = true;
                                     break;
                                 } // unmerge once
+                                if ls[i].variant == 2 {
+                                    // Swap hook↔circumflex: ă→â, ơ→ô (tone
+                                    // stays on the vowel).  For a hooked o
+                                    // after a hooked u, unhook the u too
+                                    // (ươ→uô) — inverse of the w rule where
+                                    // hook replaces circumflex (uô→ươ).
+                                    ls[i].variant = 1;
+                                    if upper {
+                                        ls[i].upper = true;
+                                    }
+                                    if ls[i].c == 'o'
+                                        && i > 0
+                                        && ls[i - 1].is_vowel
+                                        && ls[i - 1].c == 'u'
+                                        && ls[i - 1].variant == 2
+                                    {
+                                        ls[i - 1].variant = 0;
+                                    }
+                                    consumed = true;
+                                    break;
+                                }
                             }
                         } else {
                             break;
@@ -1159,6 +1201,19 @@ mod tests {
         assert_eq!(tt("sauas"), "sấu");
         assert_eq!(tt("dauaf"), "dầu");
         assert_eq!(tt("aay"), "ây");
+    }
+
+    // ── Double-vowel on a hooked vowel swaps hook↔circumflex ───────
+    #[test]
+    fn telex_double_vowel_swap() {
+        // ă + a → â (tone preserved): lắm + a → lấm
+        assert_eq!(tt("lawsma"), "lấm"); // lắm + a (tone after final consonant)
+        assert_eq!(t("lawsma"), "lấm"); // modern tone placement — same result
+        assert_eq!(tt("awsa"), "ấ"); // ắ + a → ấ
+        assert_eq!(tt("luowjco"), "luộc"); // lược + o → luộc (ươ→uô, inverse of uô+w→ươ)
+        assert_eq!(tv("lawsma"), "lấm"); // TeipVni combined mode too
+                                         // One-shot after swap: second a unmerges â→a like the aa/aaa pattern.
+        assert_eq!(tt("lawsmaa"), "láma"); // lấm + a → lám + literal a
     }
 
     // ── w-toggle: pressing w again undoes the mark ──────────────────
