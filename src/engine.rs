@@ -261,9 +261,20 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                         if ls[i].is_vowel {
                             if ls[i].c == lc {
                                 if i < vi {
+                                    // Roof crossing rules (x-unikey VSeqList
+                                    // withRoof): a crosses y/u (ây, âu),
+                                    // e crosses u (êu), o crosses i
+                                    // (ôi, uôi). Any other intermediate
+                                    // vowel blocks the roof.
                                     let blocked = ls[i + 1..=vi]
                                         .iter()
-                                        .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                        .any(|lt| lt.is_vowel
+                                            && !matches!(
+                                                (lc, lt.c),
+                                                ('a', 'y' | 'u')
+                                                    | ('e', 'u')
+                                                    | ('o', 'i')
+                                            ));
                                     if blocked {
                                         break;
                                     }
@@ -556,9 +567,20 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                         if ls[i].is_vowel {
                             if ls[i].c == lc {
                                 if i < vi {
+                                    // Roof crossing rules (x-unikey VSeqList
+                                    // withRoof): a crosses y/u (ây, âu),
+                                    // e crosses u (êu), o crosses i
+                                    // (ôi, uôi). Any other intermediate
+                                    // vowel blocks the roof.
                                     let blocked = ls[i + 1..=vi]
                                         .iter()
-                                        .any(|lt| lt.is_vowel && lt.c != 'y' && lt.c != 'u');
+                                        .any(|lt| lt.is_vowel
+                                            && !matches!(
+                                                (lc, lt.c),
+                                                ('a', 'y' | 'u')
+                                                    | ('e', 'u')
+                                                    | ('o', 'i')
+                                            ));
                                     if blocked {
                                         break;
                                     }
@@ -1214,6 +1236,36 @@ mod tests {
         assert_eq!(tv("lawsma"), "lấm"); // TeipVni combined mode too
                                          // One-shot after swap: second a unmerges â→a like the aa/aaa pattern.
         assert_eq!(tt("lawsmaa"), "láma"); // lấm + a → lám + literal a
+    }
+
+    // ── Roof (circumflex) crossing rules — x-unikey VSeqList parity ──
+    // a crosses y/u (ây, âu), e crosses u (êu), o crosses i (ôi/uôi).
+    #[test]
+    fn telex_roof_crossing() {
+        // o crosses i: oi + o → ôi (x-unikey: vs_oi withRoof = vs_ori)
+        assert_eq!(tt("oio"), "ôi");
+        assert_eq!(t("oio"), "ôi");
+        assert_eq!(tt("ddoio"), "đôi");
+        assert_eq!(tt("đoio"), "đôi"); // literal đ (surrounding-text rebuild)
+        assert_eq!(tt("doio"), "dôi");
+        assert_eq!(tt("oiof"), "ồi"); // tone after roof lands on ô
+        // uoi + o → uôi (roof at position 1, x-unikey vs_uoi → vs_uori)
+        assert_eq!(tt("uoio"), "uôi");
+        assert_eq!(tt("uoiof"), "uồi");
+        // ơi + o → ôi and ươi + o → uôi (hook↔circumflex swap across i)
+        assert_eq!(tt("owio"), "ôi");
+        assert_eq!(tt("uowio"), "uôi");
+        assert_eq!(tv("oio"), "ôi"); // TeipVni combined mode too
+                                     // ai + a stays aia — x-unikey vs_ai has no withRoof (blocks i for a)
+        assert_eq!(tt("aia"), "aia");
+        assert_eq!(tt("eie"), "eie"); // ei is not a roofable cluster either
+        // a still crosses y/u, e crosses u (existing behavior)
+        assert_eq!(tt("vaya"), "vây");
+        assert_eq!(tt("saua"), "sâu");
+        assert_eq!(tt("eue"), "êu");
+        // o does NOT cross u/y (x-unikey vs_uou / oy have no withRoof)
+        assert_eq!(tt("uouo"), "uouo");
+        assert_eq!(tt("oyo"), "oyo");
     }
 
     // ── w-toggle: pressing w again undoes the mark ──────────────────
