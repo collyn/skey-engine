@@ -189,7 +189,7 @@ impl SkeyEngine {
 /// isn't a complete valid syllable (e.g. abbreviations like "đc").
 pub(crate) fn has_vn_markers(input: &str) -> bool {
     // Vietnamese composition markers that signal intentional IME transforms.
-    //   dd → đ                  (d-stroke — always intentional)
+    //   dd → đ                  (d-stroke — intentional when word-initial)
     //   aaa/eee/ooo             (3+ same vowel = circumflex toggle in progress)
     //   aww/oww/uww             (vowel+w+w = horn/breve toggle chain)
     //
@@ -198,8 +198,13 @@ pub(crate) fn has_vn_markers(input: &str) -> bool {
     // Vietnamese anyway, so auto-restore wouldn't touch them.
     // The toggle chains (vowww → vơw) produce invalid output that needs
     // protection from auto-restore.
+    //
+    // "dd" only counts at the START of the word: đ is always a word-initial
+    // consonant in Vietnamese, so a dd→đ merge mid-word (address, ladder)
+    // signals English input and must NOT block auto-restore.  Word-initial
+    // "dd" protects intentional abbreviations like "đc".
     let lower = input.to_lowercase();
-    lower.contains("dd")
+    lower.starts_with("dd")
         || lower.contains("aaa")
         || lower.contains("eee")
         || lower.contains("ooo")
@@ -432,6 +437,26 @@ mod tests {
     fn dict_keeps_abbreviations() {
         let e = eng(true, true);
         assert_eq!(e.transform("ddc"), "đc"); // has_vn_markers protection
+    }
+
+    #[test]
+    fn auto_restore_english_dd_words() {
+        // Mid-word "dd" is English, not an intentional đ — auto-restore
+        // must return the raw input at every intermediate stage.
+        let e = eng(true, false);
+        assert_eq!(e.transform("add"), "add");
+        assert_eq!(e.transform("addr"), "addr");
+        assert_eq!(e.transform("addre"), "addre");
+        assert_eq!(e.transform("addres"), "addres");
+        assert_eq!(e.transform("address"), "address");
+        assert_eq!(e.transform("ladder"), "ladder");
+        // Dict mode restores them too (no word starts with "ad").
+        let e = eng(true, true);
+        assert_eq!(e.transform("address"), "address");
+        // Word-initial dd stays an intentional đ abbreviation.
+        let e = eng(true, false);
+        assert_eq!(e.transform("ddc"), "đc");
+        assert_eq!(e.transform("ddi"), "đi");
     }
 
     #[test]
