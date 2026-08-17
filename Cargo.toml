@@ -1,6 +1,6 @@
 [package]
 name = "skey-engine"
-version = "0.1.22"
+version = "0.1.23"
 edition = "2021"
 description = "Stateless Vietnamese input method engine"
 authors = ["Nguyễn Tiến Huy <collyn094@gmail.com>"]

@@ -199,12 +199,21 @@ pub(crate) fn has_vn_markers(input: &str) -> bool {
     // The toggle chains (vowww → vơw) produce invalid output that needs
     // protection from auto-restore.
     //
-    // "dd" only counts at the START of the word: đ is always a word-initial
-    // consonant in Vietnamese, so a dd→đ merge mid-word (address, ladder)
-    // signals English input and must NOT block auto-restore.  Word-initial
-    // "dd" protects intentional abbreviations like "đc".
+    // "dd" counts as an intentional marker when the resulting đ would be
+    // word-initial or follow a consonant — Vietnamese abbreviations place
+    // đ right after a consonant (đc, vcđ, kđ).  A dd after a VOWEL
+    // (address, add, odd, ladder) is English — English dd always follows
+    // a vowel — and must NOT block auto-restore.
     let lower = input.to_lowercase();
-    lower.starts_with("dd")
+    let dd_marker = lower.starts_with("dd")
+        || lower.match_indices("dd").any(|(i, _)| {
+            i > 0
+                && !matches!(
+                    lower[..i].chars().next_back(),
+                    Some('a' | 'e' | 'i' | 'o' | 'u' | 'y')
+                )
+        });
+    dd_marker
         || lower.contains("aaa")
         || lower.contains("eee")
         || lower.contains("ooo")
@@ -450,13 +459,19 @@ mod tests {
         assert_eq!(e.transform("addres"), "addres");
         assert_eq!(e.transform("address"), "address");
         assert_eq!(e.transform("ladder"), "ladder");
-        // Dict mode restores them too (no word starts with "ad").
+        assert_eq!(e.transform("odd"), "odd"); // English dd after a vowel
+                                               // Dict mode restores them too (no word starts with "ad").
         let e = eng(true, true);
         assert_eq!(e.transform("address"), "address");
         // Word-initial dd stays an intentional đ abbreviation.
         let e = eng(true, false);
         assert_eq!(e.transform("ddc"), "đc");
         assert_eq!(e.transform("ddi"), "đi");
+        // dd after a CONSONANT is an intentional abbreviation too —
+        // đ follows a consonant in Vietnamese chat shorthand (vcđ, kđ).
+        assert_eq!(e.transform("vcdd"), "vcđ");
+        assert_eq!(e.transform("kdd"), "kđ");
+        assert_eq!(e.transform("cmdd"), "cmđ");
     }
 
     #[test]
