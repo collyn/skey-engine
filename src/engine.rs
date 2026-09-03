@@ -219,9 +219,20 @@ pub fn convert_telex_auto_restore(input: &str, modern: bool, short_w: bool) -> S
 
 fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
     let mut ls: Vec<Letter> = Vec::with_capacity(input.len());
+    // Non-Vn word mode (x-unikey parity): once the user toggles a mark OFF
+    // (hook, roof, or d-stroke), the word is no longer Vietnamese — every
+    // subsequent transform key acts as a plain letter for the rest of the
+    // word.  This lets English words typed the Unikey way compose literally:
+    // "doww" → "dow" (toggle), then "nload" stays raw → "download" instead
+    // of re-transforming into "đôwnla".
+    let mut reverted = false;
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
+        if reverted {
+            ls.push(Letter::new(ch, upper));
+            continue;
+        }
         // dd → đ: merge once, unmerge once, then one-shot (like aa).
         // dd→đ, ddd→dd, dddd→ddd (no re-merge after toggle-off).
         if lc == 'd' {
@@ -240,6 +251,7 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                 if let Some(di) = last_dstroke_index(&ls) {
                     ls[di].is_dstroke = false;
                     ls[di].d_toggled = true;
+                    reverted = true;
                     // fall through: push literal 'd'
                 }
             }
@@ -290,6 +302,7 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                                 if ls[i].variant == 1 {
                                     ls[i].variant = 0;
                                     ls[i].circ_toggled = true;
+                                    reverted = true;
                                     break;
                                 } // unmerge once
                                 if ls[i].variant == 2 {
@@ -338,6 +351,7 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                 crate::vseq::HookResult::ToggledOff => {
                     // Hook removed — tone may need repositioning
                     reposition_tone_after_hook(&mut ls, modern);
+                    reverted = true;
                     // w falls through as literal below
                 }
                 crate::vseq::HookResult::NotApplicable => {
@@ -476,9 +490,17 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
 ///   - everything else is a normal letter
 pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
     let mut ls: Vec<Letter> = Vec::with_capacity(input.len());
+    // Non-Vn word mode — same rule as convert_telex_impl: after a mark
+    // toggle-off the word is no longer Vietnamese, so all subsequent
+    // transform keys (VNI digits and Telex marks) act as plain letters.
+    let mut reverted = false;
     for ch in input.chars() {
         let lc = ch.to_ascii_lowercase();
         let upper = ch.is_ascii_uppercase();
+        if reverted {
+            ls.push(Letter::new(ch, upper));
+            continue;
+        }
 
         // ── VNI digit rules ──
         if let Some(t) = vni_tone(lc) {
@@ -547,6 +569,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                 if let Some(di) = last_dstroke_index(&ls) {
                     ls[di].is_dstroke = false;
                     ls[di].d_toggled = true;
+                    reverted = true;
                     // fall through: push literal 'd'
                 }
             }
@@ -596,6 +619,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                 if ls[i].variant == 1 {
                                     ls[i].variant = 0;
                                     ls[i].circ_toggled = true;
+                                    reverted = true;
                                     break;
                                 } // unmerge once
                                 if ls[i].variant == 2 {
@@ -641,6 +665,7 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                 }
                 crate::vseq::HookResult::ToggledOff => {
                     reposition_tone_after_hook(&mut ls, modern);
+                    reverted = true;
                     // w falls through as literal
                 }
                 crate::vseq::HookResult::NotApplicable => {
@@ -1010,6 +1035,25 @@ mod tests {
         assert_eq!(t("hello"), "hello");
         assert_eq!(t("wood"), "wôd");
         assert_eq!(t("reboot"), "rebôt");
+    }
+    #[test]
+    fn telex_english_toggle_off_word() {
+        // Unikey-style English typing: doww un-hooks the ơ (toggle-off) and
+        // the rest of the word must compose literally — x-unikey non-Vn word
+        // mode.  "download" must not corrupt into "đôwnla".
+        assert_eq!(t("dow"), "dơ");
+        assert_eq!(t("doww"), "dow");
+        assert_eq!(t("dowwn"), "down");
+        assert_eq!(t("dowwnlo"), "downlo");
+        assert_eq!(t("dowwnload"), "download");
+        assert_eq!(t("dowwnloads"), "downloads");
+        // After a mark toggle-off, transform keys are plain letters.
+        assert_eq!(tt("owwo"), "owo");  // roof literal after hook toggle
+        assert_eq!(tt("dowws"), "dows"); // tone literal after hook toggle
+        assert_eq!(tt("toiwws"), "toiws");
+        assert_eq!(tt("aaas"), "aas"); // tone literal after roof toggle
+        assert_eq!(tt("aaaw"), "aaw");  // hook literal after roof toggle
+        assert_eq!(tt("dddda"), "ddda"); // letters literal after d toggle
     }
     #[test]
     fn telex_z() {

@@ -449,6 +449,22 @@ mod tests {
     }
 
     #[test]
+    fn auto_restore_unikey_style_english_word() {
+        // Unikey-style "download": doww toggles the horn off, then the rest
+        // composes literally.  Auto-restore must not be needed at all — the
+        // word never corrupts into "đôwnla".
+        let e = eng(true, false);
+        assert_eq!(e.transform("dow"), "dơ");
+        assert_eq!(e.transform("doww"), "dow");
+        assert_eq!(e.transform("dowwnlo"), "downlo");
+        assert_eq!(e.transform("dowwnload"), "download");
+        assert_eq!(e.transform("dowwnloads"), "downloads");
+        // Dictionary mode gives the same literal composition.
+        let e = eng(true, true);
+        assert_eq!(e.transform("dowwnload"), "download");
+    }
+
+    #[test]
     fn auto_restore_english_dd_words() {
         // Mid-word "dd" is English, not an intentional đ — auto-restore
         // must return the raw input at every intermediate stage.
