@@ -465,6 +465,27 @@ mod tests {
     }
 
     #[test]
+    fn auto_restore_shortw_ww_english_word() {
+        // short_w: bare w → ư, second w toggles ư→w and switches the word
+        // to non-Vietnamese mode — the rest composes literally, so
+        // auto-restore never has to revert it back to raw "ww…".
+        let mut e = eng(true, false);
+        e.set_short_w(true);
+        assert_eq!(e.transform("w"), "ư");
+        assert_eq!(e.transform("ww"), "w");
+        assert_eq!(e.transform("wwa"), "wa");
+        assert_eq!(e.transform("wway"), "way");
+        assert_eq!(e.transform("wwayl"), "wayl");
+        assert_eq!(e.transform("wwayla"), "wayla"); // a…a crossing must not fire
+        assert_eq!(e.transform("wwayland"), "wayland");
+        assert_eq!(e.transform("wwindow"), "window");
+        // Dictionary mode gives the same result.
+        let mut e = eng(true, true);
+        e.set_short_w(true);
+        assert_eq!(e.transform("wwayland"), "wayland");
+    }
+
+    #[test]
     fn auto_restore_english_dd_words() {
         // Mid-word "dd" is English, not an intentional đ — auto-restore
         // must return the raw input at every intermediate stage.

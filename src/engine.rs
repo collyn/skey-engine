@@ -354,6 +354,13 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                     reverted = true;
                     // w falls through as literal below
                 }
+                crate::vseq::HookResult::ToggledToLiteral => {
+                    // Standalone ư rewritten to literal w — the word is no
+                    // longer Vietnamese: rest of the word stays raw
+                    // ("ww"+"ayland" → "wayland", like "doww" → "download").
+                    reverted = true;
+                    continue;
+                }
                 crate::vseq::HookResult::NotApplicable => {
                     if crate::vseq::try_insert_horn(&mut ls, short_w, upper) {
                         continue;
@@ -667,6 +674,12 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                     reposition_tone_after_hook(&mut ls, modern);
                     reverted = true;
                     // w falls through as literal
+                }
+                crate::vseq::HookResult::ToggledToLiteral => {
+                    // Standalone ư rewritten to literal w — non-Vietnamese
+                    // word mode, rest of the word stays raw.
+                    reverted = true;
+                    continue;
                 }
                 crate::vseq::HookResult::NotApplicable => {
                     if crate::vseq::try_insert_horn(&mut ls, short_w, upper) {
@@ -1321,6 +1334,11 @@ mod tests {
         assert_eq!(tt("ww"), "w"); // ư→w toggle (consumed)
         assert_eq!(tt("www"), "ww"); // w literal + w literal
         assert_eq!(tt("wws"), "ws"); // w→ư, w→w (toggle), s has no vowel → ws
+        // After the ư→w toggle the word is non-Vietnamese — the rest
+        // stays raw, like "doww" → "download".  "wwayland" → "wayland",
+        // not "wâylnd" (the a…a circumflex crossing must not fire).
+        assert_eq!(tt("wwayland"), "wayland");
+        assert_eq!(tt("wwindow"), "window");
     }
     #[test]
     fn telex_w_toggle_regular() {

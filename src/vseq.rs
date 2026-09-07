@@ -13,6 +13,9 @@ pub enum HookResult {
     Applied,
     /// Hook was removed (toggled off); w key falls through as literal.
     ToggledOff,
+    /// Standalone ư (from bare w) was rewritten to a literal w; w consumed.
+    /// Caller must enter non-Vietnamese word mode (rest of the word stays raw).
+    ToggledToLiteral,
     /// No hookable vowel found; try phase 2 (insert standalone ư).
     NotApplicable,
 }
@@ -105,6 +108,7 @@ fn uo_o_only_prefix(ls: &[Letter], vstart: usize) -> bool {
 /// Returns:
 /// - `Applied` — hook was set on vowel(s); w consumed, caller should `continue`
 /// - `ToggledOff` — hook was removed; w falls through as literal
+/// - `ToggledToLiteral` — standalone ư rewritten to literal w; w consumed
 /// - `NotApplicable` — no hookable vowel; caller should try phase 2
 pub(crate) fn try_apply_hook(ls: &mut Vec<Letter>) -> HookResult {
     let (vstart, vcount) = match vowel_cluster(ls) {
@@ -154,14 +158,16 @@ pub(crate) fn try_apply_hook(ls: &mut Vec<Letter>) -> HookResult {
             return HookResult::Applied; // w consumed, hook confirmed
         }
         // Toggle OFF: remove hook from all hook positions.
-        // Special case: standalone ư (from_w on single u) → rewrite to literal w.
+        // Special case: standalone ư (from_w on single u) → rewrite to
+        // literal w and switch the word to non-Vietnamese mode so the
+        // rest of the word stays raw ("ww"+"ayland" → "wayland").
         if vs.len == 1 && vs.base[0] == 'u'
             && ls[vstart].variant == 2 && ls[vstart].from_w
         {
             ls[vstart].c = 'w';
             ls[vstart].is_vowel = false;
             ls[vstart].from_w = false;
-            return HookResult::Applied; // w consumed, no literal
+            return HookResult::ToggledToLiteral; // w consumed, no literal
         }
         for i in 0..vs.len as usize {
             if (vs.hook_mask >> i) & 1 != 0 {
@@ -253,7 +259,7 @@ fn apply_single_hook(ls: &mut Vec<Letter>, vi: usize) -> HookResult {
                     ls[first].c = 'w';
                     ls[first].is_vowel = false;
                     ls[first].from_w = false;
-                    HookResult::Applied // w consumed, no literal
+                    HookResult::ToggledToLiteral // w consumed, no literal
                 } else {
                     ls[first].variant = 0;
                     ls[first].from_w = true;
