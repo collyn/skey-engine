@@ -60,6 +60,32 @@ fn emit(ls: &[Letter]) -> String {
     out
 }
 
+/// Validity gate for a NON-ADJACENT roof application (trailing chars sit
+/// between the new key and the target vowel).  The delayed-roof feature
+/// intentionally crosses valid final consonants ("nhan"+a → "nhân"), but
+/// the same loop also crossed consonants that can never close a syllable:
+/// "ava" → "âv", and the aaa-unmerge round-trip turned "avata" into
+/// "avta".  Only fire the merge/swap when the candidate word is a valid
+/// Vietnamese syllable.  `swap` distinguishes the hook↔circumflex swap
+/// (variant 2→1, which also unhooks a preceding hooked u for o) from the
+/// plain merge (variant 0→1).  Adjacent applications skip the gate.
+fn crossing_roof_valid(ls: &[Letter], i: usize, upper: bool, swap: bool) -> bool {
+    if i + 1 >= ls.len() {
+        return true; // adjacent — plain "aa" merge, never gated
+    }
+    let mut trial = ls.to_vec();
+    trial[i].variant = 1;
+    if upper {
+        trial[i].upper = true;
+    }
+    if swap && trial[i].c == 'o' && i > 0 && trial[i - 1].is_vowel
+        && trial[i - 1].c == 'u' && trial[i - 1].variant == 2
+    {
+        trial[i - 1].variant = 0;
+    }
+    crate::spelling::is_valid_cvc(&emit(&trial))
+}
+
 fn last_vowel_index(ls: &[Letter]) -> Option<usize> {
     ls.iter().rposition(|lt| lt.is_vowel)
 }
@@ -292,6 +318,9 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                                     }
                                 }
                                 if ls[i].variant == 0 {
+                                    if !crossing_roof_valid(&ls, i, upper, false) {
+                                        break;
+                                    }
                                     ls[i].variant = 1;
                                     if upper {
                                         ls[i].upper = true;
@@ -311,6 +340,9 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                                     // after a hooked u, unhook the u too
                                     // (ươ→uô) — inverse of the w rule where
                                     // hook replaces circumflex (uô→ươ).
+                                    if !crossing_roof_valid(&ls, i, upper, true) {
+                                        break;
+                                    }
                                     ls[i].variant = 1;
                                     if upper {
                                         ls[i].upper = true;
@@ -616,6 +648,9 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                     }
                                 }
                                 if ls[i].variant == 0 {
+                                    if !crossing_roof_valid(&ls, i, upper, false) {
+                                        break;
+                                    }
                                     ls[i].variant = 1;
                                     if upper {
                                         ls[i].upper = true;
@@ -635,6 +670,9 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                     // after a hooked u, unhook the u too
                                     // (ươ→uô) — inverse of the w rule where
                                     // hook replaces circumflex (uô→ươ).
+                                    if !crossing_roof_valid(&ls, i, upper, true) {
+                                        break;
+                                    }
                                     ls[i].variant = 1;
                                     if upper {
                                         ls[i].upper = true;
@@ -1323,6 +1361,32 @@ mod tests {
         // o does NOT cross u/y (x-unikey vs_uou / oy have no withRoof)
         assert_eq!(tt("uouo"), "uouo");
         assert_eq!(tt("oyo"), "oyo");
+    }
+
+    // ── No crossing over consonants that can't close a syllable ──────
+    #[test]
+    fn telex_no_crossing_over_invalid_finals() {
+        // The delayed-roof merge crossed ANY trailing consonant: "ava" →
+        // "âv", and the aaa-unmerge round-trip then turned "avata" into
+        // "avta" ("avatar" → "avtar").  Merges across trailing chars now
+        // require the result to be a valid Vietnamese syllable.
+        assert_eq!(t("ava"), "ava");
+        assert_eq!(tt("ava"), "ava");
+        assert_eq!(t("avat"), "avat");
+        assert_eq!(t("avata"), "avata");
+        assert_eq!(t("eve"), "eve");
+        assert_eq!(t("ovo"), "ovo");
+        assert_eq!(t("lava"), "lava");
+        assert_eq!(t("bava"), "bava");
+        // Intended delayed-roof crossings keep working.
+        assert_eq!(tt("nhana"), "nhân");
+        assert_eq!(tt("khanas"), "khấn");
+        assert_eq!(t("chata"), "chât");
+        assert_eq!(tt("lawsma"), "lấm");
+        // TeipVni copy of the loop has the same gate.
+        assert_eq!(tv("avata"), "avata");
+        assert_eq!(tv("nhana"), "nhân");
+        assert_eq!(tv("lawsma"), "lấm");
     }
 
     // ── w-toggle: pressing w again undoes the mark ──────────────────
