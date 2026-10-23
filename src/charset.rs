@@ -110,54 +110,31 @@ static UNICODE_TABLE: [char; VN_CHAR_COUNT] = [
 ];
 
 // ── TCVN3 (ABC) single-byte table ────────────────────────────────────
-// Ported from x-unikey SingleByteTables[0].
-// Maps internal index → TCVN3 byte value.
-// 0x00 means the character is not representable in TCVN3.
-
+// TCVN5712-1 byte mapping (the standard used by glibc iconv).
+// 0x00 means the character is not representable in TCVN5712-1.
+//
+// This intentionally differs from the historical .VnTime/x-unikey table:
+// the latter assigns several Vietnamese letters to different byte slots.
+//
 static TCVN3_TABLE: [u8; VN_CHAR_COUNT] = [
-    // 0..11: a
-    b'A', b'a', 0xB8, 0xB8, 0xB5, 0xB5, 0xB6, 0xB6, 0xB7, 0xB7, 0xB9, 0xB9,
-    // 12..23: â
-    0xA2, 0xA9, 0xCA, 0xCA, 0xC7, 0xC7, 0xC8, 0xC8, 0xC9, 0xC9, 0xCB, 0xCB,
-    // 24..35: ă
-    0xA1, 0xA8, 0xBE, 0xBE, 0xBB, 0xBB, 0xBC, 0xBC, 0xBD, 0xBD, 0xC6, 0xC6,
-    // 36..41: B,b,C,c,D,d
-    b'B', b'b', b'C', b'c', b'D', b'd',
-    // 42..43: Đ,đ
-    0xA5, 0xB0,
-    // 44..55: e
-    b'E', b'e', 0xC4, 0xC4, 0xBF, 0xBF, 0xC0, 0xC0, 0xC1, 0xC1, 0xC2, 0xC2,
-    // 56..67: ê
-    0xA4, 0xAB, 0xCC, 0xCC, 0xC3, 0xC3, 0xCE, 0xCE, 0xCF, 0xCF, 0xD0, 0xD0,
-    // 68..73: F,f,G,g,H,h
-    b'F', b'f', b'G', b'g', b'H', b'h',
-    // 74..85: i
-    b'I', b'i', 0xAE, 0xAE, 0xA6, 0xA6, 0xB1, 0xB1, 0xB2, 0xB2, 0xB3, 0xB3,
-    // 86..95: J,j,K,k,L,l,M,m,N,n
-    b'J', b'j', b'K', b'k', b'L', b'l', b'M', b'm', b'N', b'n',
-    // 96..107: o
-    b'O', b'o', 0xD3, 0xD3, 0xD4, 0xD4, 0xD5, 0xD5, 0xD6, 0xD6, 0xD8, 0xD8,
-    // 108..119: ô
-    0xA3, 0xAA, 0xD9, 0xD9, 0xD1, 0xD1, 0xDA, 0xDA, 0xDB, 0xDB, 0xDC, 0xDC,
-    // 120..131: ơ
-    0xA7, 0xAD, 0xE1, 0xE1, 0xDD, 0xDD, 0xDE, 0xDE, 0xDF, 0xDF, 0xE0, 0xE0,
-    // 132..141: P,p,Q,q,R,r,S,s,T,t
-    b'P', b'p', b'Q', b'q', b'R', b'r', b'S', b's', b'T', b't',
-    // 142..153: u
-    b'U', b'u', 0xE7, 0xE7, 0xE4, 0xE4, 0xE5, 0xE5, 0xE6, 0xE6, 0xE8, 0xE8,
-    // 154..165: ư
-    0xB4, 0xAC, 0xE3, 0xE3, 0xD7, 0xD7, 0xE9, 0xE9, 0xEA, 0xEA, 0xEB, 0xEB,
-    // 166..171: V,v,W,w,X,x
-    b'V', b'v', b'W', b'w', b'X', b'x',
-    // 172..183: y
-    b'Y', b'y', 0xED, 0xED, 0xEE, 0xEE, 0xF0, 0xF0, 0xF1, 0xF1, 0xEF, 0xEF,
-    // 184..185: Z,z
-    b'Z', b'z',
-    // 186..212: Western symbols
-    0x80, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88,
-    0x89, 0x8A, 0x8B, 0x8C, 0x8E, 0x91, 0x92, 0x93,
-    0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B,
-    0x9C, 0x9E, 0x9F,
+    0x41, 0x61, 0x83, 0xB8, 0x80, 0xB5, 0x81, 0xB6, 0x82, 0xB7, 0x84, 0xB9,
+    0xA2, 0xA9, 0xC4, 0xCA, 0xC1, 0xC7, 0xC2, 0xC8, 0xC3, 0xC9, 0x86, 0xCB,
+    0xA1, 0xA8, 0xC0, 0xBE, 0xAF, 0xBB, 0xBA, 0xBC, 0xBF, 0xBD, 0x85, 0xC6,
+    0x42, 0x62, 0x43, 0x63, 0x44, 0x64, 0xA7, 0xAE, 0x45, 0x65, 0x8A, 0xD0,
+    0x87, 0xCC, 0x88, 0xCE, 0x89, 0xCF, 0x8B, 0xD1, 0xA3, 0xAA, 0xDA, 0xD5,
+    0xC5, 0xD2, 0xCD, 0xD3, 0xD9, 0xD4, 0x8C, 0xD6, 0x46, 0x66, 0x47, 0x67,
+    0x48, 0x68, 0x49, 0x69, 0x90, 0xDD, 0x8D, 0xD7, 0x8E, 0xD8, 0x8F, 0xDC,
+    0x91, 0xDE, 0x4A, 0x6A, 0x4B, 0x6B, 0x4C, 0x6C, 0x4D, 0x6D, 0x4E, 0x6E,
+    0x4F, 0x6F, 0x95, 0xE3, 0x92, 0xDF, 0x93, 0xE1, 0x94, 0xE2, 0x96, 0xE4,
+    0xA4, 0xAB, 0xFF, 0xE8, 0xDB, 0xE5, 0xE0, 0xE6, 0xF0, 0xE7, 0x97, 0xE9,
+    0xA5, 0xAC, 0x9B, 0xED, 0x98, 0xEA, 0x99, 0xEB, 0x9A, 0xEC, 0x9C, 0xEE,
+    0x50, 0x70, 0x51, 0x71, 0x52, 0x72, 0x53, 0x73, 0x54, 0x74, 0x55, 0x75,
+    0x01, 0xF3, 0x9D, 0xEF, 0x9E, 0xF1, 0x9F, 0xF2, 0x02, 0xF4, 0xA6, 0xAD,
+    0x11, 0xF8, 0x04, 0xF5, 0x05, 0xF6, 0x06, 0xF7, 0x12, 0xF9, 0x56, 0x76,
+    0x57, 0x77, 0x58, 0x78, 0x59, 0x79, 0x16, 0xFD, 0x13, 0xFA, 0x14, 0xFB,
+    0x15, 0xFC, 0x17, 0xFE, 0x5A, 0x7A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
 // ── VNI-WIN double-byte table ────────────────────────────────────────
@@ -572,61 +549,45 @@ static VNI_MAC_TABLE: [u16; VN_CHAR_COUNT] = [
     0x00CF, 0x003F, 0x00D9,];
 
 // ── Unicode NFD (decomposed) table ───────────────────────────────────
-
-static UNICOMP_TABLE: [u32; VN_CHAR_COUNT] = [    0x00000041, 0x00000061, 0x03010041, 0x03010061,
-    0x03000041, 0x03000061, 0x03090041, 0x03090061,
-    0x03030041, 0x03030061, 0x03230041, 0x03230061,
-    0x000000C2, 0x000000E2, 0x030100C2, 0x030100E2,
-    0x030000C2, 0x030000E2, 0x030900C2, 0x030900E2,
-    0x030300C2, 0x030300E2, 0x032300C2, 0x032300E2,
-    0x00000102, 0x00000103, 0x03010102, 0x03010103,
-    0x03000102, 0x03000103, 0x03090102, 0x03090103,
-    0x03030102, 0x03030103, 0x03230102, 0x03230103,
-    0x00000042, 0x00000062, 0x00000043, 0x00000063,
-    0x00000044, 0x00000064, 0x00000110, 0x00000111,
-    0x000000D1, 0x000000F1, 0x00000045, 0x00000065,
-    0x03010045, 0x03010065, 0x03000045, 0x03000065,
-    0x03090045, 0x03090065, 0x03030045, 0x03030065,
-    0x03230045, 0x03230065, 0x000000CA, 0x000000EA,
-    0x030100CA, 0x030100EA, 0x030000CA, 0x030000EA,
-    0x030900CA, 0x030900EA, 0x030300CA, 0x030300EA,
-    0x032300CA, 0x032300EA, 0x00000046, 0x00000066,
-    0x00000047, 0x00000067, 0x00000048, 0x00000068,
-    0x00000049, 0x00000069, 0x03010049, 0x03010069,
-    0x03000049, 0x03000069, 0x03090049, 0x03090069,
-    0x03030049, 0x03030069, 0x03230049, 0x03230069,
-    0x0000004A, 0x0000006A, 0x0000004B, 0x0000006B,
-    0x0000004C, 0x0000006C, 0x0000004D, 0x0000006D,
-    0x0000004E, 0x0000006E, 0x0000004F, 0x0000006F,
-    0x0301004F, 0x0301006F, 0x0300004F, 0x0300006F,
-    0x0309004F, 0x0309006F, 0x0303004F, 0x0303006F,
-    0x0323004F, 0x0323006F, 0x000000D4, 0x000000F4,
-    0x030100D4, 0x030100F4, 0x030000D4, 0x030000F4,
-    0x030900D4, 0x030900F4, 0x030300D4, 0x030300F4,
-    0x032300D4, 0x032300F4, 0x000001A0, 0x000001A1,
-    0x030101A0, 0x030101A1, 0x030001A0, 0x030001A1,
-    0x030901A0, 0x030901A1, 0x030301A0, 0x030301A1,
-    0x032301A0, 0x032301A1, 0x00000050, 0x00000070,
-    0x00000051, 0x00000071, 0x00000052, 0x00000072,
-    0x00000053, 0x00000073, 0x00000054, 0x00000074,
-    0x00000055, 0x00000075, 0x03010055, 0x03010075,
-    0x03000055, 0x03000075, 0x03090055, 0x03090075,
-    0x03030055, 0x03030075, 0x03230055, 0x03230075,
-    0x000001AF, 0x000001B0, 0x030101AF, 0x030101B0,
-    0x030001AF, 0x030001B0, 0x030901AF, 0x030901B0,
-    0x030301AF, 0x030301B0, 0x032301AF, 0x032301B0,
-    0x00000056, 0x00000076, 0x00000057, 0x00000077,
-    0x00000058, 0x00000078, 0x00000059, 0x00000079,
-    0x03010059, 0x03010079, 0x03000059, 0x03000079,
-    0x03090059, 0x03090079, 0x03030059, 0x03030079,
-    0x03230059, 0x03230079, 0x0000005A, 0x0000007A,
-    0x000020AC, 0x000020A1, 0x00000192, 0x0000201E,
-    0x00002026, 0x00002020, 0x00002021, 0x000002C6,
-    0x00002030, 0x00000160, 0x00002039, 0x00000152,
-    0x0000017D, 0x00002018, 0x00002019, 0x0000201C,
-    0x0000201D, 0x00002022, 0x00002013, 0x00002014,
-    0x000002DC, 0x00002122, 0x00000161, 0x0000203A,
-    0x00000153,];
+// Canonical Unicode decomposition for every character in UNICODE_TABLE.
+static UNICODE_NFD_TABLE: [&str; VN_CHAR_COUNT] = [
+    "\u{41}", "\u{61}", "\u{41}\u{301}", "\u{61}\u{301}", "\u{41}\u{300}", "\u{61}\u{300}",
+    "\u{41}\u{309}", "\u{61}\u{309}", "\u{41}\u{303}", "\u{61}\u{303}", "\u{41}\u{323}", "\u{61}\u{323}",
+    "\u{41}\u{302}", "\u{61}\u{302}", "\u{41}\u{302}\u{301}", "\u{61}\u{302}\u{301}", "\u{41}\u{302}\u{300}", "\u{61}\u{302}\u{300}",
+    "\u{41}\u{302}\u{309}", "\u{61}\u{302}\u{309}", "\u{41}\u{302}\u{303}", "\u{61}\u{302}\u{303}", "\u{41}\u{323}\u{302}", "\u{61}\u{323}\u{302}",
+    "\u{41}\u{306}", "\u{61}\u{306}", "\u{41}\u{306}\u{301}", "\u{61}\u{306}\u{301}", "\u{41}\u{306}\u{300}", "\u{61}\u{306}\u{300}",
+    "\u{41}\u{306}\u{309}", "\u{61}\u{306}\u{309}", "\u{41}\u{306}\u{303}", "\u{61}\u{306}\u{303}", "\u{41}\u{323}\u{306}", "\u{61}\u{323}\u{306}",
+    "\u{42}", "\u{62}", "\u{43}", "\u{63}", "\u{44}", "\u{64}",
+    "\u{110}", "\u{111}", "\u{45}", "\u{65}", "\u{45}\u{301}", "\u{65}\u{301}",
+    "\u{45}\u{300}", "\u{65}\u{300}", "\u{45}\u{309}", "\u{65}\u{309}", "\u{45}\u{303}", "\u{65}\u{303}",
+    "\u{45}\u{323}", "\u{65}\u{323}", "\u{45}\u{302}", "\u{65}\u{302}", "\u{45}\u{302}\u{301}", "\u{65}\u{302}\u{301}",
+    "\u{45}\u{302}\u{300}", "\u{65}\u{302}\u{300}", "\u{45}\u{302}\u{309}", "\u{65}\u{302}\u{309}", "\u{45}\u{302}\u{303}", "\u{65}\u{302}\u{303}",
+    "\u{45}\u{323}\u{302}", "\u{65}\u{323}\u{302}", "\u{46}", "\u{66}", "\u{47}", "\u{67}",
+    "\u{48}", "\u{68}", "\u{49}", "\u{69}", "\u{49}\u{301}", "\u{69}\u{301}",
+    "\u{49}\u{300}", "\u{69}\u{300}", "\u{49}\u{309}", "\u{69}\u{309}", "\u{49}\u{303}", "\u{69}\u{303}",
+    "\u{49}\u{323}", "\u{69}\u{323}", "\u{4A}", "\u{6A}", "\u{4B}", "\u{6B}",
+    "\u{4C}", "\u{6C}", "\u{4D}", "\u{6D}", "\u{4E}", "\u{6E}",
+    "\u{4F}", "\u{6F}", "\u{4F}\u{301}", "\u{6F}\u{301}", "\u{4F}\u{300}", "\u{6F}\u{300}",
+    "\u{4F}\u{309}", "\u{6F}\u{309}", "\u{4F}\u{303}", "\u{6F}\u{303}", "\u{4F}\u{323}", "\u{6F}\u{323}",
+    "\u{4F}\u{302}", "\u{6F}\u{302}", "\u{4F}\u{302}\u{301}", "\u{6F}\u{302}\u{301}", "\u{4F}\u{302}\u{300}", "\u{6F}\u{302}\u{300}",
+    "\u{4F}\u{302}\u{309}", "\u{6F}\u{302}\u{309}", "\u{4F}\u{302}\u{303}", "\u{6F}\u{302}\u{303}", "\u{4F}\u{323}\u{302}", "\u{6F}\u{323}\u{302}",
+    "\u{4F}\u{31B}", "\u{6F}\u{31B}", "\u{4F}\u{31B}\u{301}", "\u{6F}\u{31B}\u{301}", "\u{4F}\u{31B}\u{300}", "\u{6F}\u{31B}\u{300}",
+    "\u{4F}\u{31B}\u{309}", "\u{6F}\u{31B}\u{309}", "\u{4F}\u{31B}\u{303}", "\u{6F}\u{31B}\u{303}", "\u{4F}\u{31B}\u{323}", "\u{6F}\u{31B}\u{323}",
+    "\u{50}", "\u{70}", "\u{51}", "\u{71}", "\u{52}", "\u{72}",
+    "\u{53}", "\u{73}", "\u{54}", "\u{74}", "\u{55}", "\u{75}",
+    "\u{55}\u{301}", "\u{75}\u{301}", "\u{55}\u{300}", "\u{75}\u{300}", "\u{55}\u{309}", "\u{75}\u{309}",
+    "\u{55}\u{303}", "\u{75}\u{303}", "\u{55}\u{323}", "\u{75}\u{323}", "\u{55}\u{31B}", "\u{75}\u{31B}",
+    "\u{55}\u{31B}\u{301}", "\u{75}\u{31B}\u{301}", "\u{55}\u{31B}\u{300}", "\u{75}\u{31B}\u{300}", "\u{55}\u{31B}\u{309}", "\u{75}\u{31B}\u{309}",
+    "\u{55}\u{31B}\u{303}", "\u{75}\u{31B}\u{303}", "\u{55}\u{31B}\u{323}", "\u{75}\u{31B}\u{323}", "\u{56}", "\u{76}",
+    "\u{57}", "\u{77}", "\u{58}", "\u{78}", "\u{59}", "\u{79}",
+    "\u{59}\u{301}", "\u{79}\u{301}", "\u{59}\u{300}", "\u{79}\u{300}", "\u{59}\u{309}", "\u{79}\u{309}",
+    "\u{59}\u{303}", "\u{79}\u{303}", "\u{59}\u{323}", "\u{79}\u{323}", "\u{5A}", "\u{7A}",
+    "\u{20AC}", "\u{20A1}", "\u{192}", "\u{201E}", "\u{2026}", "\u{2020}",
+    "\u{2021}", "\u{2C6}", "\u{2030}", "\u{53}\u{30C}", "\u{2039}", "\u{152}",
+    "\u{5A}\u{30C}", "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}", "\u{2022}",
+    "\u{2013}", "\u{2014}", "\u{2DC}", "\u{2122}", "\u{73}\u{30C}", "\u{203A}",
+    "\u{153}", "\u{7A}\u{30C}", "\u{59}\u{308}",
+];
 
 // ── Tone removal table ──────────────────────────────────────────────
 // Ported from x-unikey StdVnNoTone[213].
@@ -720,18 +681,9 @@ fn tcvn3_to_index_map() -> &'static HashMap<u8, usize> {
     MAP.get_or_init(|| {
         let mut m = HashMap::with_capacity(VN_CHAR_COUNT);
         for (i, &b) in TCVN3_TABLE.iter().enumerate() {
-            m.insert(b, i);
-        }
-        m
-    })
-}
-
-fn vniwin_to_index_map() -> &'static HashMap<u16, usize> {
-    static MAP: OnceLock<HashMap<u16, usize>> = OnceLock::new();
-    MAP.get_or_init(|| {
-        let mut m = HashMap::with_capacity(VN_CHAR_COUNT);
-        for (i, &w) in VNIWIN_TABLE.iter().enumerate() {
-            m.insert(w, i);
+            if b != 0 {
+                m.insert(b, i);
+            }
         }
         m
     })
@@ -795,7 +747,14 @@ fn encode_sb(input: &str, table: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(input.len());
     for ch in input.chars() {
         if let Some(&idx) = map.get(&ch) {
-            out.push(table[idx]);
+            let b = table[idx];
+            if b != 0 {
+                out.push(b);
+            } else {
+                let mut buf = [0u8; 4];
+                let s = ch.encode_utf8(&mut buf);
+                out.extend_from_slice(s.as_bytes());
+            }
         } else {
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
@@ -811,8 +770,17 @@ fn encode_db(input: &str, table: &[u16]) -> Vec<u8> {
     for ch in input.chars() {
         if let Some(&idx) = map.get(&ch) {
             let w = table[idx];
-            out.push((w & 0xFF) as u8);
-            out.push((w >> 8) as u8);
+            if w != 0 {
+                out.push((w & 0xFF) as u8);
+                let hi = (w >> 8) as u8;
+                if hi != 0 {
+                    out.push(hi);
+                }
+            } else {
+                let mut buf = [0u8; 4];
+                let s = ch.encode_utf8(&mut buf);
+                out.extend_from_slice(s.as_bytes());
+            }
         } else if ch.is_ascii() {
             out.push(ch as u8);
         } else {
@@ -866,23 +834,7 @@ fn encode_nfd(input: &str) -> Vec<u8> {
     let mut out = Vec::with_capacity(input.len() * 6);
     for ch in input.chars() {
         if let Some(&idx) = map.get(&ch) {
-            let w = UNICOMP_TABLE[idx];
-            let base = w & 0xFFFF;
-            let comb = (w >> 16) & 0xFFFF;
-            // Encode base char as UTF-8
-            if let Some(c) = char::from_u32(base) {
-                let mut buf = [0u8; 4];
-                let s = c.encode_utf8(&mut buf);
-                out.extend_from_slice(s.as_bytes());
-            }
-            // Encode combining mark as UTF-8 (if present)
-            if comb != 0 {
-                if let Some(c) = char::from_u32(comb) {
-                    let mut buf = [0u8; 4];
-                    let s = c.encode_utf8(&mut buf);
-                    out.extend_from_slice(s.as_bytes());
-                }
-            }
+            out.extend_from_slice(UNICODE_NFD_TABLE[idx].as_bytes());
         } else {
             let mut buf = [0u8; 4];
             let s = ch.encode_utf8(&mut buf);
@@ -946,33 +898,16 @@ pub fn decode(input: &[u8], charset: VietCharset) -> String {
             out
         }
         VietCharset::VNIWin => {
-            let map = vniwin_to_index_map();
-            let mut out = String::with_capacity(input.len());
-            let mut i = 0;
-            while i < input.len() {
-                // Try 2-byte VNI-WIN pair
-                if i + 1 < input.len() {
-                    let lo = input[i];
-                    let hi = input[i + 1];
-                    let w = lo as u16 | ((hi as u16) << 8);
-                    if let Some(&idx) = map.get(&w) {
-                        out.push(UNICODE_TABLE[idx]);
-                        i += 2;
-                        continue;
-                    }
-                }
-                // Fallback: single byte pass-through
-                out.push(input[i] as char);
-                i += 1;
-            }
-            out
+            decode_db(input, &VNIWIN_TABLE)
         }
         // Generic: all single-byte charsets decode the same way
         cs if is_single_byte(cs) => {
             let table = sb_table(cs);
             let mut rev: HashMap<u8, usize> = HashMap::with_capacity(VN_CHAR_COUNT);
             for (i, &b) in table.iter().enumerate() {
-                rev.insert(b, i);
+                if b != 0 {
+                    rev.insert(b, i);
+                }
             }
             let mut out = String::with_capacity(input.len());
             for &b in input {
@@ -986,34 +921,50 @@ pub fn decode(input: &[u8], charset: VietCharset) -> String {
         }
         // Generic: all double-byte charsets decode the same way
         cs if is_double_byte(cs) => {
-            let table = db_table(cs);
-            let mut rev: HashMap<u16, usize> = HashMap::with_capacity(VN_CHAR_COUNT);
-            for (i, &w) in table.iter().enumerate() {
-                rev.insert(w, i);
-            }
-            let mut out = String::with_capacity(input.len());
-            let mut i = 0;
-            while i < input.len() {
-                if i + 1 < input.len() {
-                    let lo = input[i];
-                    let hi = input[i + 1];
-                    let w = lo as u16 | ((hi as u16) << 8);
-                    if let Some(&idx) = rev.get(&w) {
-                        out.push(UNICODE_TABLE[idx]);
-                        i += 2;
-                        continue;
-                    }
-                }
-                out.push(input[i] as char);
-                i += 1;
-            }
-            out
+            decode_db(input, db_table(cs))
         }
         // NFD: pass through (decode as UTF-8)
         VietCharset::UnicodeDecomposed => String::from_utf8_lossy(input).to_string(),
         // All other variants (single-byte, double-byte) handled above via guard arms
         _ => String::from_utf8_lossy(input).to_string(),
     }
+}
+
+/// Decode a table whose entries are either one byte (`0x00XX`) or a
+/// little-endian two-byte word (`0xYYXX`).  The encoder omits the zero high
+/// byte for one-byte entries, so decoding must recognize both forms.
+fn decode_db(input: &[u8], table: &[u16]) -> String {
+    let mut pairs: HashMap<u16, usize> = HashMap::with_capacity(VN_CHAR_COUNT);
+    let mut singles: HashMap<u8, usize> = HashMap::with_capacity(VN_CHAR_COUNT);
+    for (i, &w) in table.iter().enumerate() {
+        if w == 0 {
+            continue;
+        }
+        pairs.insert(w, i);
+        if w <= 0x00FF {
+            singles.insert(w as u8, i);
+        }
+    }
+
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0;
+    while i < input.len() {
+        if i + 1 < input.len() {
+            let w = input[i] as u16 | ((input[i + 1] as u16) << 8);
+            if let Some(&idx) = pairs.get(&w) {
+                out.push(UNICODE_TABLE[idx]);
+                i += 2;
+                continue;
+            }
+        }
+        if let Some(&idx) = singles.get(&input[i]) {
+            out.push(UNICODE_TABLE[idx]);
+        } else {
+            out.push(input[i] as char);
+        }
+        i += 1;
+    }
+    out
 }
 
 /// Remove tone marks from a Vietnamese UTF-8 string.
@@ -1061,11 +1012,54 @@ mod tests {
     }
 
     #[test]
+    fn tcvn3_matches_tcvn5712_1_for_vietnamese_letters() {
+        // These are the 74 letters used to validate the table against
+        // `iconv -t TCVN5712-1` (7 uppercase/lowercase base pairs plus the
+        // 60 lowercase vowel-tone combinations).
+        let chars = "ĂăÂâÊêÔôƠơƯưĐđáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ";
+        let expected = [
+            0xA1, 0xA8, 0xA2, 0xA9, 0xA3, 0xAA, 0xA4, 0xAB, 0xA5, 0xAC,
+            0xA6, 0xAD, 0xA7, 0xAE, 0xB8, 0xB5, 0xB6, 0xB7, 0xB9, 0xCA,
+            0xC7, 0xC8, 0xC9, 0xCB, 0xBE, 0xBB, 0xBC, 0xBD, 0xC6, 0xD0,
+            0xCC, 0xCE, 0xCF, 0xD1, 0xD5, 0xD2, 0xD3, 0xD4, 0xD6, 0xDD,
+            0xD7, 0xD8, 0xDC, 0xDE, 0xE3, 0xDF, 0xE1, 0xE2, 0xE4, 0xE8,
+            0xE5, 0xE6, 0xE7, 0xE9, 0xED, 0xEA, 0xEB, 0xEC, 0xEE, 0xF3,
+            0xEF, 0xF1, 0xF2, 0xF4, 0xF8, 0xF5, 0xF6, 0xF7, 0xF9, 0xFD,
+            0xFA, 0xFB, 0xFC, 0xFE,
+        ];
+        assert_eq!(chars.chars().count(), expected.len());
+        assert_eq!(encode(chars, VietCharset::TCVN3), expected);
+        assert_eq!(decode(&expected, VietCharset::TCVN3), chars);
+    }
+
+    #[test]
     fn vniwin_roundtrip() {
         let input = "tiếng Việt";
         let encoded = encode(input, VietCharset::VNIWin);
         let decoded = decode(&encoded, VietCharset::VNIWin);
         assert_eq!(decoded, input);
+    }
+
+    #[test]
+    fn double_byte_encoding_omits_zero_high_bytes() {
+        // VNI-WIN stores these letters as single bytes.  A trailing 00 is
+        // not part of the charset and becomes a literal NUL in the FFI
+        // consumer.
+        assert_eq!(encode("ĐđưÍ", VietCharset::VNIWin), [0xD1, 0xF1, 0xF6, 0xCD]);
+        assert_eq!(decode(&[0xD1, 0xF1, 0xF6, 0xCD], VietCharset::VNIWin), "ĐđưÍ");
+
+        for charset in [
+            VietCharset::VNIWin,
+            VietCharset::BKHCM2,
+            VietCharset::VietwareX,
+            VietCharset::VNIMac,
+        ] {
+            assert!(
+                !encode("ĐđưÍ", charset).contains(&0),
+                "zero byte emitted for {:?}",
+                charset
+            );
+        }
     }
 
     #[test]

@@ -44,7 +44,9 @@ void skey_free_string(char *s);
 
 // ── Charset conversion ────────────────────────────────────────────────
 // Charset IDs (matches VietCharset enum in Rust):
-//   0 = Unicode, 1 = TCVN3, 2 = VNI-WIN, 3 = WinCP1258, 4 = VIQR
+//   0 = Unicode, 1 = TCVN3, 2 = VNI-WIN, 3 = WinCP1258, 4 = VIQR,
+//   5 = VPS, 6 = VISCII, 7 = BKHCM1, 8 = Vietware-F, 9 = ISC,
+//   10 = BKHCM2, 11 = Vietware-X, 12 = VNI-MAC, 13 = Unicode NFD
 
 // Encode UTF-8 string to target charset bytes.  out_len receives the
 // number of bytes written.  Caller must free the returned buffer with

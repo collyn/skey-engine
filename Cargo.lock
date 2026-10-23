@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "skey-engine"
-version = "0.1.26"
+version = "0.2.1"
 dependencies = [
  "criterion",
  "libc",

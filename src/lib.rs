@@ -169,8 +169,12 @@ impl SkeyEngine {
         } else {
             Self::is_valid(&composed)
         };
+        // A bare w is an intentional ShortW transform (w -> ư).  Treat it
+        // as a composition marker so AutoRestore does not turn the result
+        // back into ASCII when a frontend commits the surrounding text.
+        let short_w_marker = self.short_w && (input == "w" || input == "W");
         if self.auto_restore && !all_ascii && composed != input
-            && !known && !has_vn_markers(input)
+            && !known && !(short_w_marker || has_vn_markers(input))
         {
             input.to_string()
         } else {
@@ -314,6 +318,26 @@ pub unsafe extern "C" fn skey_engine_transform(
 
 // ── Charset FFI ──────────────────────────────────────────────────────
 
+fn charset_from_id(id: i32) -> charset::VietCharset {
+    match id {
+        0 => charset::VietCharset::Unicode,
+        1 => charset::VietCharset::TCVN3,
+        2 => charset::VietCharset::VNIWin,
+        3 => charset::VietCharset::WinCP1258,
+        4 => charset::VietCharset::VIQR,
+        5 => charset::VietCharset::VPS,
+        6 => charset::VietCharset::VISCII,
+        7 => charset::VietCharset::BKHCM1,
+        8 => charset::VietCharset::VietwareF,
+        9 => charset::VietCharset::ISC,
+        10 => charset::VietCharset::BKHCM2,
+        11 => charset::VietCharset::VietwareX,
+        12 => charset::VietCharset::VNIMac,
+        13 => charset::VietCharset::UnicodeDecomposed,
+        _ => charset::VietCharset::Unicode,
+    }
+}
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn skey_charset_encode(
     input: *const c_char,
@@ -324,14 +348,7 @@ pub unsafe extern "C" fn skey_charset_encode(
     let s = match unsafe { CStr::from_ptr(input) }.to_str() {
         Ok(s) => s, Err(_) => return std::ptr::null_mut(),
     };
-    let cs = match charset {
-        0 => charset::VietCharset::Unicode,
-        1 => charset::VietCharset::TCVN3,
-        2 => charset::VietCharset::VNIWin,
-        3 => charset::VietCharset::WinCP1258,
-        4 => charset::VietCharset::VIQR,
-        _ => charset::VietCharset::Unicode,
-    };
+    let cs = charset_from_id(charset);
     let encoded = charset::encode(s, cs);
     let len = encoded.len();
     let ptr = libc::malloc(len).cast::<u8>();
@@ -349,14 +366,7 @@ pub unsafe extern "C" fn skey_charset_decode(
 ) -> *mut c_char {
     if input.is_null() { return std::ptr::null_mut(); }
     let bytes = unsafe { std::slice::from_raw_parts(input, len) };
-    let cs = match charset {
-        0 => charset::VietCharset::Unicode,
-        1 => charset::VietCharset::TCVN3,
-        2 => charset::VietCharset::VNIWin,
-        3 => charset::VietCharset::WinCP1258,
-        4 => charset::VietCharset::VIQR,
-        _ => charset::VietCharset::Unicode,
-    };
+    let cs = charset_from_id(charset);
     let decoded = charset::decode(bytes, cs);
     CString::new(decoded).unwrap_or_default().into_raw()
 }
