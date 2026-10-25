@@ -86,6 +86,21 @@ fn crossing_roof_valid(ls: &[Letter], i: usize, upper: bool, swap: bool) -> bool
     crate::spelling::is_valid_cvc(&emit(&trial))
 }
 
+/// Validity gate for the circumflex TOGGLE-OFF (unmerge once, like the
+/// merge gate above).  The trailing-char unmerge intentionally crosses
+/// valid final consonants ("nhân"+a → "nhan"+"a"), but must not fire when
+/// the result is not a valid Vietnamese syllable: "spêdt"+e would collapse
+/// "speedtest" into "spedtest".  Adjacent toggles ("eee" → "ee") skip the
+/// gate.
+fn unmerge_valid(ls: &[Letter], i: usize) -> bool {
+    if i + 1 >= ls.len() {
+        return true; // adjacent — plain "eee" toggle, never gated
+    }
+    let mut trial = ls.to_vec();
+    trial[i].variant = 0;
+    crate::spelling::is_valid_cvc(&emit(&trial))
+}
+
 fn last_vowel_index(ls: &[Letter]) -> Option<usize> {
     ls.iter().rposition(|lt| lt.is_vowel)
 }
@@ -329,6 +344,16 @@ fn convert_telex_impl(input: &str, modern: bool, short_w: bool) -> String {
                                     break;
                                 }
                                 if ls[i].variant == 1 {
+                                    if !unmerge_valid(&ls, i) {
+                                        // Unmerging would leave a non-
+                                        // Vietnamese syllable (e.g. the e
+                                        // after "spêdt" in "speedtest") —
+                                        // keep the ê and switch the word to
+                                        // literal mode; the key falls
+                                        // through as a plain letter.
+                                        reverted = true;
+                                        break;
+                                    }
                                     ls[i].variant = 0;
                                     ls[i].circ_toggled = true;
                                     reverted = true;
@@ -659,6 +684,16 @@ pub fn convert_teip_vni(input: &str, modern: bool, short_w: bool) -> String {
                                     break;
                                 }
                                 if ls[i].variant == 1 {
+                                    if !unmerge_valid(&ls, i) {
+                                        // Unmerging would leave a non-
+                                        // Vietnamese syllable (e.g. the e
+                                        // after "spêdt" in "speedtest") —
+                                        // keep the ê and switch the word to
+                                        // literal mode; the key falls
+                                        // through as a plain letter.
+                                        reverted = true;
+                                        break;
+                                    }
                                     ls[i].variant = 0;
                                     ls[i].circ_toggled = true;
                                     reverted = true;
@@ -1105,6 +1140,24 @@ mod tests {
         assert_eq!(tt("aaas"), "aas"); // tone literal after roof toggle
         assert_eq!(tt("aaaw"), "aaw");  // hook literal after roof toggle
         assert_eq!(tt("dddda"), "ddda"); // letters literal after d toggle
+    }
+    #[test]
+    fn telex_english_no_unmerge_across_invalid_syllable() {
+        // "speedtest" must not collapse into "spedtest": the e after
+        // "spêdt" is not an adjacent unmerge, and unmerging would leave
+        // the invalid syllable "spedt".  The ê stays, the word goes
+        // literal — no keystroke is lost ("spêdtest").
+        assert_eq!(t("speedte"), "spêdte");
+        assert_eq!(t("speedtes"), "spêdtes");
+        assert_eq!(t("speedtest"), "spêdtest");
+        assert_eq!(tt("speedtest"), "spêdtest");
+        assert_eq!(tv("speedtest"), "spêdtest");
+        // Same collapse via the a…a toggle: "banana" must not eat the
+        // second a ("banna" is all-ASCII and would escape auto-restore).
+        assert_eq!(t("banana"), "bânna");
+        // Legitimate unmerges across valid final consonants keep working.
+        assert_eq!(tt("nhanaa"), "nhana");
+        assert_eq!(tt("lawsmaa"), "láma");
     }
     #[test]
     fn telex_z() {

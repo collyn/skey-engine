@@ -522,6 +522,30 @@ mod tests {
     }
 
     #[test]
+    fn auto_restore_speedtest_no_letter_loss() {
+        // "speedtest" must not collapse into "spedtest": the unmerge gate
+        // keeps the ê in the composed word ("spêdtest"), which is invalid
+        // Vietnamese — auto-restore recovers the raw input at every stage.
+        // A collapse would be all-ASCII and invisible to auto-restore.
+        let e = eng(true, false);
+        for (buf, want) in [
+            ("spee", "spee"),
+            ("speed", "speed"),
+            ("speedt", "speedt"),
+            ("speedte", "speedte"),
+            ("speedtes", "speedtes"),
+            ("speedtest", "speedtest"),
+            ("banana", "banana"),
+        ] {
+            assert_eq!(e.transform(buf), want, "input {buf:?}");
+        }
+        // Dictionary mode gives the same literal result.
+        let e = eng(true, true);
+        assert_eq!(e.transform("speedtest"), "speedtest");
+        assert_eq!(e.transform("banana"), "banana");
+    }
+
+    #[test]
     fn double_vowel_swap_survives_auto_restore() {
         // lắm + a → lấm (hook↔circumflex swap) is a valid word, so
         // auto-restore must NOT revert it to raw keystrokes.
