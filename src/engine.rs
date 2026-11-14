@@ -953,6 +953,52 @@ pub fn convert_viqr(input: &str) -> String {
     emit(&ls)
 }
 
+/// Start index of the contiguous vowel cluster that ends at the last vowel.
+fn vni_cluster(ls: &[Letter]) -> Option<(usize, usize)> {
+    let last = last_vowel_index(ls)?;
+    let mut start = last;
+    while start > 0 && ls[start - 1].is_vowel {
+        start -= 1;
+    }
+    Some((start, last))
+}
+
+/// VNI roof key (6): the target vowel may sit before trailing vowels, with
+/// the same crossings as the Telex roof path (x-unikey VSeqList withRoof):
+/// a crosses y/u (ây, âu), e crosses u (êu), o crosses i (ôi, uôi).
+/// Without this, "toi6" stayed "toi6" and "loi64" became "loĩ6".
+fn vni_roof_target(ls: &[Letter]) -> Option<usize> {
+    let (start, last) = vni_cluster(ls)?;
+    for i in (start..=last).rev() {
+        let c = ls[i].c;
+        if matches!(c, 'a' | 'e' | 'o') {
+            let ok = ls[i + 1..=last].iter().all(|lt| {
+                matches!((c, lt.c), ('a', 'y' | 'u') | ('e', 'u') | ('o', 'i'))
+            });
+            return if ok { Some(i) } else { None };
+        }
+    }
+    None
+}
+
+/// VNI horn key (7): o crosses i/u (ơi, ươi, ươu), u crosses a/i/u
+/// (ưa, ưi, ưu — the first u of "uu").  A u right after q is part of the
+/// "qu" onset and never takes the horn.
+fn vni_horn_target(ls: &[Letter]) -> Option<usize> {
+    let (start, last) = vni_cluster(ls)?;
+    for i in (start..=last).rev() {
+        if ls[i].c == 'o' {
+            let ok = ls[i + 1..=last].iter().all(|lt| matches!(lt.c, 'i' | 'u'));
+            return if ok { Some(i) } else { None };
+        }
+    }
+    (start..=last).find(|&i| {
+        ls[i].c == 'u'
+            && !(i > 0 && ls[i - 1].c == 'q')
+            && ls[i + 1..=last].iter().all(|lt| matches!(lt.c, 'a' | 'i' | 'u'))
+    })
+}
+
 pub fn convert_vni(input: &str, modern: bool, _short_w: bool) -> String {
     let mut ls: Vec<Letter> = Vec::with_capacity(input.len());
     for ch in input.chars() {
@@ -966,22 +1012,22 @@ pub fn convert_vni(input: &str, modern: bool, _short_w: bool) -> String {
         }
         match lc {
             '6' => {
-                if let Some(vi) = last_vowel_index(&ls) {
-                    if matches!(ls[vi].c, 'a' | 'e' | 'o') {
-                        ls[vi].variant = 1;
-                        continue;
-                    }
+                if let Some(vi) = vni_roof_target(&ls) {
+                    ls[vi].variant = 1;
+                    continue;
                 }
             }
             '7' => {
-                if let Some(vi) = last_vowel_index(&ls) {
-                    if matches!(ls[vi].c, 'o' | 'u') {
-                        ls[vi].variant = 2;
-                        if ls[vi].c == 'o' && vi > 0 && ls[vi - 1].c == 'u' {
-                            ls[vi - 1].variant = 2;
-                        }
-                        continue;
+                if let Some(vi) = vni_horn_target(&ls) {
+                    ls[vi].variant = 2;
+                    if ls[vi].c == 'o'
+                        && vi > 0
+                        && ls[vi - 1].c == 'u'
+                        && !(vi > 1 && ls[vi - 2].c == 'q')
+                    {
+                        ls[vi - 1].variant = 2;
                     }
+                    continue;
                 }
             }
             '8' => {
@@ -1323,6 +1369,38 @@ mod tests {
         assert_eq!(vt("tie61ng"), "tiếng");
         assert_eq!(vt("qua1"), "quá");
         assert_eq!(vt("gia1"), "giá");
+    }
+
+    // ── VNI marks typed after a trailing vowel (6/7 crossing) ──────
+    #[test]
+    fn vni_roof_horn_crossing() {
+        // circumflex crossing: ôi, uôi, ây, âu, êu
+        assert_eq!(vt("toi6"), "tôi");
+        assert_eq!(vt("loi64"), "lỗi");
+        assert_eq!(vt("loi46"), "lỗi");
+        assert_eq!(vt("moi6"), "môi");
+        assert_eq!(vt("tuoi63"), "tuổi");
+        assert_eq!(vt("cuoi61"), "cuối");
+        assert_eq!(vt("day61"), "dấy");
+        assert_eq!(vt("dau6"), "dâu");
+        assert_eq!(vt("keu6"), "kêu");
+        // horn crossing: ơi, ươi, ươu, ưa, ưi, ưu
+        assert_eq!(vt("nguoi72"), "người");
+        assert_eq!(vt("moi71"), "mới");
+        assert_eq!(vt("ruou75"), "rượu");
+        assert_eq!(vt("mua7"), "mưa");
+        assert_eq!(vt("gui73"), "gửi");
+        assert_eq!(vt("cuu71"), "cứu");
+        assert_eq!(vt("quo73"), "quở");
+        // unchanged behaviour
+        assert_eq!(vt("to6i"), "tôi");
+        assert_eq!(vt("nguo7i2"), "người");
+        assert_eq!(vt("viet65"), "việt");
+        assert_eq!(vt("duong79"), "đương");
+        assert_eq!(vt("hoa2"), "hòa");
+        // no valid target → digit stays literal
+        assert_eq!(vt("qua7"), "qua7");
+        assert_eq!(vt("hoai6"), "hoai6");
     }
 
     // ── Tone replacement tests ─────────────────────────────────────
